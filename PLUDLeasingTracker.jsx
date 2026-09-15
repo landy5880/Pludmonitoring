@@ -81,6 +81,7 @@ const SEED_TENANTS = [
 
 const STORAGE_KEY = "plud-leasing-tracker-data";
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
+const ACCOUNT_KEY = "plud-leasing-tracker-account";
 const uid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const keyOf = (property, unit) => (property && unit ? `${property}|${unit}` : "");
 const fmtDate = (d) => {
@@ -90,6 +91,16 @@ const fmtDate = (d) => {
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 const fmtMoney = (n) => (n || n === 0 ? `₱${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—");
+
+async function hashPassword(password, salt) {
+  const enc = new TextEncoder();
+  const data = enc.encode(`${salt}:${password}`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function randomSalt() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 function computeListingStatus(listingKey, tenants) {
   const matches = tenants.filter((t) => keyOf(t.property, t.unit) === listingKey);
@@ -334,18 +345,33 @@ function ConfirmDialog({ title, body, onCancel, onConfirm }) {
   );
 }
 
-function LoginScreen({ onLogin }) {
-  const [name, setName] = useState("");
+function LoginScreen({ account, onSignup, onLoginWithPassword, onForgotPassword }) {
+  const hasAccount = !!account;
+  const [name, setName] = useState(hasAccount ? account.name : "");
   const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError("Enter your name to sign in.");
-      return;
+    if (!name.trim()) { setError("Enter a username."); return; }
+    if (!password) { setError("Enter a password."); return; }
+
+    setSubmitting(true);
+    try {
+      if (hasAccount) {
+        const ok = await onLoginWithPassword(name, password);
+        if (!ok) setError("Incorrect username or password.");
+      } else {
+        if (password.length < 4) { setError("Password must be at least 4 characters."); setSubmitting(false); return; }
+        if (password !== password2) { setError("Passwords don't match."); setSubmitting(false); return; }
+        await onSignup(name, role, password);
+      }
+    } finally {
+      setSubmitting(false);
     }
-    onLogin({ name: name.trim(), role: role.trim() });
   };
 
   return (
@@ -361,7 +387,9 @@ function LoginScreen({ onLogin }) {
           </div>
         </div>
 
-        <p className="mb-5 text-sm text-stone-600">Sign in to view and manage the leasing pipeline.</p>
+        <p className="mb-5 text-sm text-stone-600">
+          {hasAccount ? "Sign in to view and manage the leasing pipeline." : "Create a sign-in for this leasing tracker."}
+        </p>
 
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -370,28 +398,67 @@ function LoginScreen({ onLogin }) {
         )}
 
         <div className="space-y-4">
-          <Field label="Your name">
+          <Field label="Username">
             <input
-              autoFocus
+              autoFocus={!hasAccount}
+              readOnly={hasAccount}
               className={inputCls}
-              placeholder="e.g. Sam Bouteldja"
+              placeholder="e.g. sbouteldja"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(""); }}
             />
           </Field>
-          <Field label="Role (optional)">
+          {!hasAccount && (
+            <Field label="Role (optional)">
+              <input
+                className={inputCls}
+                placeholder="e.g. Leasing Manager"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              />
+            </Field>
+          )}
+          <Field label="Password">
             <input
+              autoFocus={hasAccount}
+              type="password"
+              autoComplete={hasAccount ? "current-password" : "new-password"}
               className={inputCls}
-              placeholder="e.g. Leasing Manager"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
+              placeholder={hasAccount ? "Enter your password" : "Create a password"}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
             />
           </Field>
+          {!hasAccount && (
+            <Field label="Confirm password">
+              <input
+                type="password"
+                autoComplete="new-password"
+                className={inputCls}
+                placeholder="Re-enter password"
+                value={password2}
+                onChange={(e) => { setPassword2(e.target.value); setError(""); }}
+              />
+            </Field>
+          )}
         </div>
 
-        <button type="submit" className="mt-6 w-full rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-800">
-          Sign in
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mt-6 w-full rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-60"
+        >
+          {hasAccount ? "Sign in" : "Create account & sign in"}
         </button>
+        {hasAccount && (
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="mt-3 w-full text-center text-xs font-medium text-teal-700 hover:underline"
+          >
+            Forgot password? Reset sign-in
+          </button>
+        )}
       </form>
     </div>
   );
@@ -400,6 +467,7 @@ function LoginScreen({ onLogin }) {
 export default function PLUDLeasingTracker() {
   const [tab, setTab] = useState("dashboard");
   const [user, setUser] = useState(null);
+  const [account, setAccount] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
   const [tenants, setTenants] = useState([]);
   const [listings, setListings] = useState([]);
@@ -419,6 +487,12 @@ export default function PLUDLeasingTracker() {
     let cancelled = false;
     (async () => {
       try {
+        const accRes = await window.storage.get(ACCOUNT_KEY, false);
+        if (!cancelled && accRes && accRes.value) setAccount(JSON.parse(accRes.value));
+      } catch {
+        // no account saved yet
+      }
+      try {
         const result = await window.storage.get(USER_STORAGE_KEY, false);
         if (cancelled) return;
         if (result && result.value) {
@@ -433,14 +507,26 @@ export default function PLUDLeasingTracker() {
     return () => { cancelled = true; };
   }, []);
 
-  const handleLogin = useCallback(async (u) => {
+  const handleSignup = useCallback(async (name, role, password) => {
+    const salt = randomSalt();
+    const passwordHash = await hashPassword(password, salt);
+    const acc = { name: name.trim(), role: (role || "").trim(), salt, passwordHash };
+    setAccount(acc);
+    try { await window.storage.set(ACCOUNT_KEY, JSON.stringify(acc), false); } catch { /* ignore */ }
+    const u = { name: acc.name, role: acc.role };
     setUser(u);
-    try {
-      await window.storage.set(USER_STORAGE_KEY, JSON.stringify(u), false);
-    } catch {
-      // proceed even if the session can't be persisted
-    }
+    try { await window.storage.set(USER_STORAGE_KEY, JSON.stringify(u), false); } catch { /* ignore */ }
   }, []);
+
+  const handleLoginWithPassword = useCallback(async (name, password) => {
+    if (!account || account.name.toLowerCase() !== name.trim().toLowerCase()) return false;
+    const hash = await hashPassword(password, account.salt);
+    if (hash !== account.passwordHash) return false;
+    const u = { name: account.name, role: account.role };
+    setUser(u);
+    try { await window.storage.set(USER_STORAGE_KEY, JSON.stringify(u), false); } catch { /* ignore */ }
+    return true;
+  }, [account]);
 
   const handleLogout = useCallback(async () => {
     setUser(null);
@@ -449,6 +535,14 @@ export default function PLUDLeasingTracker() {
     } catch {
       // ignore
     }
+  }, []);
+
+  const handleForgotPassword = useCallback(async () => {
+    if (!window.confirm("This clears your saved sign-in (username + password) but keeps your tenant and listing data. Continue?")) return;
+    setAccount(null);
+    setUser(null);
+    try { await window.storage.delete(ACCOUNT_KEY, false); } catch { /* ignore */ }
+    try { await window.storage.delete(USER_STORAGE_KEY, false); } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
@@ -576,7 +670,14 @@ export default function PLUDLeasingTracker() {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return (
+      <LoginScreen
+        account={account}
+        onSignup={handleSignup}
+        onLoginWithPassword={handleLoginWithPassword}
+        onForgotPassword={handleForgotPassword}
+      />
+    );
   }
 
   if (loading) {
