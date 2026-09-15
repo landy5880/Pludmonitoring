@@ -622,6 +622,7 @@ export default function PLUDLeasingTracker() {
     const awarded = tenants.filter((t) => t.status === "Awarded/ Leased").length;
     const lost = tenants.filter((t) => t.status === "Lost/ Inactive").length;
     const active = totalInquiries - awarded - lost;
+    const conversionRate = totalInquiries ? awarded / totalInquiries : 0;
 
     const totalUnits = listingsComputed.length;
     const available = listingsComputed.filter((l) => l.kind === "available").length;
@@ -645,7 +646,36 @@ export default function PLUDLeasingTracker() {
       .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""))
       .slice(0, 8);
 
-    return { totalInquiries, awarded, lost, active, totalUnits, available, occupied, occupancyRate, byStage, byProperty, pipeline };
+    const todayMs = new Date(new Date().toDateString()).getTime();
+    const ACTIVE_STATUSES = ["Inquired", "Pending Requirements", "Under Evaluation"];
+    const needsFollowUp = tenants
+      .filter((t) => ACTIVE_STATUSES.includes(t.status) && t.dateInquired)
+      .map((t) => {
+        const inquired = new Date(t.dateInquired + "T00:00:00").getTime();
+        const daysWaiting = Math.floor((todayMs - inquired) / 86400000);
+        return { ...t, daysWaiting };
+      })
+      .filter((t) => t.daysWaiting >= 14)
+      .sort((a, b) => b.daysWaiting - a.daysWaiting)
+      .slice(0, 6);
+
+    const upcoming = [];
+    tenants.forEach((t) => {
+      [["unitViewing", "Unit viewing"], ["foodTasting", "Food tasting"]].forEach(([field, label]) => {
+        const dateStr = t[field];
+        if (!dateStr) return;
+        const eventMs = new Date(dateStr + "T00:00:00").getTime();
+        const daysOut = Math.round((eventMs - todayMs) / 86400000);
+        if (daysOut >= 0 && daysOut <= 7) upcoming.push({ tenant: t, label, dateStr, daysOut });
+      });
+    });
+    upcoming.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+
+    return {
+      totalInquiries, awarded, lost, active, conversionRate,
+      totalUnits, available, occupied, occupancyRate,
+      byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
+    };
   }, [tenants, listingsComputed]);
 
   const filteredTenants = useMemo(() => {
@@ -740,13 +770,26 @@ export default function PLUDLeasingTracker() {
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">
         {tab === "dashboard" && (
           <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h1 className="text-lg font-semibold text-stone-900">Dashboard</h1>
+                <p className="text-sm text-stone-500">Pipeline health and listings inventory at a glance.</p>
+              </div>
+              <button
+                onClick={() => { setShowNewTenant(true); }}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800"
+              >
+                <Plus size={16} /> New inquiry
+              </button>
+            </div>
+
             <section>
               <h2 className="mb-3 text-sm font-semibold text-stone-700">Leasing pipeline</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatCard label="Total inquiries" value={stats.totalInquiries} />
                 <StatCard label="Active pipeline" value={stats.active} accent="text-blue-700" />
                 <StatCard label="Awarded / leased" value={stats.awarded} accent="text-emerald-700" />
-                <StatCard label="Lost / inactive" value={stats.lost} accent="text-rose-700" />
+                <StatCard label="Conversion rate" value={`${Math.round(stats.conversionRate * 100)}%`} sub={`${stats.awarded} of ${stats.totalInquiries} inquiries`} />
               </div>
             </section>
 
@@ -781,29 +824,72 @@ export default function PLUDLeasingTracker() {
               </section>
 
               <section className="rounded-xl border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-stone-700">Listings by property</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="text-stone-400">
-                        <th className="pb-2 font-medium">Property</th>
-                        <th className="pb-2 font-medium text-right">Units</th>
-                        <th className="pb-2 font-medium text-right">Avail.</th>
-                        <th className="pb-2 font-medium text-right">Occ. %</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.byProperty.map((p) => (
-                        <tr key={p.property} className="border-t border-stone-100">
-                          <td className="py-2 text-stone-700">{p.property}</td>
-                          <td className="py-2 text-right text-stone-600">{p.total}</td>
-                          <td className="py-2 text-right text-stone-600">{p.available}</td>
-                          <td className="py-2 text-right text-stone-600">{Math.round(p.occupancyPct * 100)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <h2 className="mb-3 text-sm font-semibold text-stone-700">Occupancy by property</h2>
+                <div className="space-y-3">
+                  {stats.byProperty.map((p) => (
+                    <div key={p.property}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="font-medium text-stone-700">{p.property}</span>
+                        <span className="text-stone-500">{p.occupied}/{p.total} occupied · {p.available} avail.</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-stone-100">
+                        <div className="h-full rounded-full bg-teal-700" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </section>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <section className="rounded-xl border border-stone-200 bg-white p-4">
+                <h2 className="mb-3 text-sm font-semibold text-stone-700">Needs follow-up</h2>
+                {stats.needsFollowUp.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-stone-500">Nothing stale — every active inquiry has moved in the last two weeks.</p>
+                ) : (
+                  <div className="divide-y divide-stone-100">
+                    {stats.needsFollowUp.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setEditingTenant(t)}
+                        className="flex w-full items-center justify-between gap-4 py-2.5 text-left hover:bg-stone-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-stone-900">{t.brand || t.concept || "(no brand/concept yet)"}</p>
+                          <p className="mt-0.5 truncate text-xs text-stone-500">{t.property}{t.unit ? ` · ${t.unit}` : ""} · {t.contact}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                          {t.daysWaiting}d waiting
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-stone-200 bg-white p-4">
+                <h2 className="mb-3 text-sm font-semibold text-stone-700">Upcoming this week</h2>
+                {stats.upcoming.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-stone-500">No viewings or tastings scheduled in the next 7 days.</p>
+                ) : (
+                  <div className="divide-y divide-stone-100">
+                    {stats.upcoming.map((u, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setEditingTenant(u.tenant)}
+                        className="flex w-full items-center justify-between gap-4 py-2.5 text-left hover:bg-stone-50"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-stone-900">{u.tenant.brand || u.tenant.concept || "(no brand/concept yet)"}</p>
+                          <p className="mt-0.5 truncate text-xs text-stone-500">{u.label} · {u.tenant.property}{u.tenant.unit ? ` · ${u.tenant.unit}` : ""}</p>
+                        </div>
+                        <span className="shrink-0 text-xs font-medium text-stone-700">
+                          {u.daysOut === 0 ? "Today" : u.daysOut === 1 ? "Tomorrow" : fmtDate(u.dateStr)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </section>
             </div>
 

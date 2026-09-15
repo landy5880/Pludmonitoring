@@ -470,6 +470,7 @@ function computeStats() {
   const awarded = tenants.filter((t) => t.status === "Awarded/ Leased").length;
   const lost = tenants.filter((t) => t.status === "Lost/ Inactive").length;
   const active = totalInquiries - awarded - lost;
+  const conversionRate = totalInquiries ? awarded / totalInquiries : 0;
 
   const totalUnits = lc.length;
   const available = lc.filter((l) => l.kind === "available").length;
@@ -483,7 +484,7 @@ function computeStats() {
     const total = units.length;
     const avail = units.filter((l) => l.kind === "available").length;
     const occ = units.filter((l) => l.kind === "occupied").length;
-    return { property: p, total, available: avail, occupancyPct: total ? occ / total : 0 };
+    return { property: p, total, available: avail, occupied: occ, occupancyPct: total ? occ / total : 0 };
   });
 
   const pipeline = tenants
@@ -492,7 +493,36 @@ function computeStats() {
     .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""))
     .slice(0, 8);
 
-  return { totalInquiries, awarded, lost, active, totalUnits, available, occupied, occupancyRate, byStage, byProperty, pipeline };
+  const todayMs = new Date(new Date().toDateString()).getTime();
+  const ACTIVE_STATUSES = ["Inquired", "Pending Requirements", "Under Evaluation"];
+  const needsFollowUp = tenants
+    .filter((t) => ACTIVE_STATUSES.includes(t.status) && t.dateInquired)
+    .map((t) => {
+      const inquired = new Date(t.dateInquired + "T00:00:00").getTime();
+      const daysWaiting = Math.floor((todayMs - inquired) / 86400000);
+      return { ...t, daysWaiting };
+    })
+    .filter((t) => t.daysWaiting >= 14)
+    .sort((a, b) => b.daysWaiting - a.daysWaiting)
+    .slice(0, 6);
+
+  const upcoming = [];
+  tenants.forEach((t) => {
+    [["unitViewing", "Unit viewing"], ["foodTasting", "Food tasting"]].forEach(([field, label]) => {
+      const dateStr = t[field];
+      if (!dateStr) return;
+      const eventMs = new Date(dateStr + "T00:00:00").getTime();
+      const daysOut = Math.round((eventMs - todayMs) / 86400000);
+      if (daysOut >= 0 && daysOut <= 7) upcoming.push({ tenant: t, label, dateStr, daysOut });
+    });
+  });
+  upcoming.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+
+  return {
+    totalInquiries, awarded, lost, active, conversionRate,
+    totalUnits, available, occupied, occupancyRate,
+    byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
+  };
 }
 
 function filteredTenants() {
@@ -668,13 +698,21 @@ function dashboardHtml() {
   const maxStage = Math.max(1, ...s.byStage.map((x) => x.count));
   return `
   <div class="stack">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <h1 style="font-size:17px;font-weight:600;margin:0;color:var(--stone-900);">Dashboard</h1>
+        <p style="font-size:13px;color:var(--stone-500);margin:2px 0 0;">Pipeline health and listings inventory at a glance.</p>
+      </div>
+      <button class="btn btn-primary" style="flex-shrink:0;" onclick="openNewTenant()">${icon("plus", 16)} New inquiry</button>
+    </div>
+
     <section>
       <h2 class="section-title">Leasing pipeline</h2>
       <div class="stat-grid">
         <div class="stat-card"><p class="stat-label">Total inquiries</p><p class="stat-value">${s.totalInquiries}</p></div>
         <div class="stat-card"><p class="stat-label">Active pipeline</p><p class="stat-value blue">${s.active}</p></div>
         <div class="stat-card"><p class="stat-label">Awarded / leased</p><p class="stat-value emerald">${s.awarded}</p></div>
-        <div class="stat-card"><p class="stat-label">Lost / inactive</p><p class="stat-value rose">${s.lost}</p></div>
+        <div class="stat-card"><p class="stat-label">Conversion rate</p><p class="stat-value">${Math.round(s.conversionRate * 100)}%</p><p class="stat-sub">${s.awarded} of ${s.totalInquiries} inquiries</p></div>
       </div>
     </section>
 
@@ -700,19 +738,47 @@ function dashboardHtml() {
       </section>
 
       <section class="panel">
-        <h2 class="section-title">Listings by property</h2>
-        <table class="mini">
-          <thead><tr><th>Property</th><th class="right">Units</th><th class="right">Avail.</th><th class="right">Occ. %</th></tr></thead>
-          <tbody>
-            ${s.byProperty.map((p) => `
-              <tr>
-                <td class="first">${esc(p.property)}</td>
-                <td class="right">${p.total}</td>
-                <td class="right">${p.available}</td>
-                <td class="right">${Math.round(p.occupancyPct * 100)}%</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
+        <h2 class="section-title">Occupancy by property</h2>
+        ${s.byProperty.map((p) => `
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+              <span style="font-weight:500;color:var(--stone-700);">${esc(p.property)}</span>
+              <span style="color:var(--stone-500);">${p.occupied}/${p.total} occupied · ${p.available} avail.</span>
+            </div>
+            <div class="stage-track"><div class="stage-fill" style="width:${Math.round(p.occupancyPct * 100)}%; background:var(--teal-700);"></div></div>
+          </div>`).join("")}
+      </section>
+    </div>
+
+    <div class="two-col">
+      <section class="panel">
+        <h2 class="section-title">Needs follow-up</h2>
+        ${s.needsFollowUp.length === 0 ? `<p class="empty-note">Nothing stale — every active inquiry has moved in the last two weeks.</p>` : `
+          <div>
+            ${s.needsFollowUp.map((t) => `
+              <button class="pipeline-item" onclick="openEditTenant('${t.id}')">
+                <div class="pipeline-main" style="min-width:0;">
+                  <p>${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
+                  <p class="pipeline-sub">${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""} · ${esc(t.contact)}</p>
+                </div>
+                <span style="flex-shrink:0;border-radius:999px;background:var(--amber-100);color:var(--amber-800);padding:4px 10px;font-size:12px;font-weight:500;">${t.daysWaiting}d waiting</span>
+              </button>`).join("")}
+          </div>`}
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Upcoming this week</h2>
+        ${s.upcoming.length === 0 ? `<p class="empty-note">No viewings or tastings scheduled in the next 7 days.</p>` : `
+          <div>
+            ${s.upcoming.map((u) => `
+              <button class="pipeline-item" onclick="openEditTenant('${u.tenant.id}')">
+                <div class="pipeline-main" style="min-width:0;">
+                  <p>${esc(u.tenant.brand || u.tenant.concept || "(no brand/concept yet)")}</p>
+                  <p class="pipeline-sub">${esc(u.label)} · ${esc(u.tenant.property)}${u.tenant.unit ? " · " + esc(u.tenant.unit) : ""}</p>
+                </div>
+                <span style="flex-shrink:0;font-size:12px;font-weight:500;color:var(--stone-700);">${u.daysOut === 0 ? "Today" : u.daysOut === 1 ? "Tomorrow" : fmtDate(u.dateStr)}</span>
+              </button>`).join("")}
+          </div>`}
       </section>
     </div>
 
