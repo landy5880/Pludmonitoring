@@ -426,7 +426,7 @@ async function signup(name, role, password) {
 async function loginWithPassword(name, password) {
   const acc = state.account;
   if (!acc || acc.name.toLowerCase() !== name.trim().toLowerCase()) {
-    setLoginError("No account found with that name.");
+    setLoginError("No account found with that username.");
     return;
   }
   const hash = await hashPassword(password, acc.salt);
@@ -544,8 +544,8 @@ function loginScreenHtml() {
       <div id="login-error">${state.loginError ? `<div class="form-error" style="margin-bottom:16px;">${icon("alert", 16)} ${esc(state.loginError)}</div>` : ""}</div>
       <div class="login-fields">
         <label>
-          <span class="field-label">Your name</span>
-          <input id="auth-name" class="input" placeholder="e.g. Sam Bouteldja" value="${hasAccount ? esc(state.account.name) : ""}" ${hasAccount ? "readonly" : "autofocus"} onkeydown="onAuthKeydown(event)" />
+          <span class="field-label">Username</span>
+          <input id="auth-name" class="input" placeholder="e.g. sbouteldja" value="${hasAccount ? esc(state.account.name) : ""}" ${hasAccount ? "readonly" : "autofocus"} onkeydown="onAuthKeydown(event)" />
         </label>
         ${!hasAccount ? `
         <label>
@@ -585,7 +585,7 @@ async function onAuthSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
   const name = document.getElementById("auth-name").value;
   const password = document.getElementById("auth-password").value;
-  if (!name.trim()) { setLoginError("Enter your name."); return false; }
+  if (!name.trim()) { setLoginError("Enter a username."); return false; }
   if (!password) { setLoginError("Enter a password."); return false; }
 
   if (state.account) {
