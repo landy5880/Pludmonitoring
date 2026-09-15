@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PLUD Leasing Tracker</title>
+<style>
+  :root{
+    --teal-700:#0f766e; --teal-800:#115e59;
+    --stone-50:#fafaf9; --stone-100:#f5f5f4; --stone-200:#e7e5e4; --stone-300:#d6d3d1;
+    --stone-400:#a8a29e; --stone-500:#78716c; --stone-600:#57534e; --stone-700:#44403c; --stone-900:#1c1917;
+    --amber-50:#fffbeb; --amber-100:#fef3c7; --amber-200:#fde68a; --amber-500:#f59e0b; --amber-700:#b45309; --amber-800:#92400e;
+    --blue-100:#dbeafe; --blue-500:#3b82f6; --blue-700:#1d4ed8; --blue-800:#1e40af;
+    --emerald-100:#d1fae5; --emerald-500:#10b981; --emerald-700:#047857; --emerald-800:#065f46;
+    --rose-50:#fff1f2; --rose-100:#ffe4e6; --rose-600:#e11d48; --rose-700:#be123c; --rose-800:#9f1239;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--stone-50); color:var(--stone-900); font-size:14px; line-height:1.45;
+  }
+  #root{min-height:100vh;}
+  .icon{display:inline-block; vertical-align:middle; flex-shrink:0;}
+  .icon.spin{animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* layout */
+  .app{display:flex; min-height:100vh;}
+  .sidebar{display:flex; flex-direction:column; width:248px; flex-shrink:0; border-right:1px solid var(--stone-200); background:#fff;
+    position:sticky; top:0; align-self:flex-start; height:100vh;}
+  .sidebar-brand{border-bottom:1px solid var(--stone-200); padding:20px;}
+  .sidebar-brand .eyebrow{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--teal-700); margin:0 0 2px;}
+  .sidebar-brand h1{font-size:17px; font-weight:600; margin:0; color:var(--stone-900);}
+  .nav{flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:4px;}
+  .nav-item{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; background:none; cursor:pointer;
+    padding:9px 12px; border-radius:8px; font-size:14px; font-weight:500; color:var(--stone-600);}
+  .nav-item:hover{background:var(--stone-100);}
+  .nav-item.active{background:var(--teal-700); color:#fff;}
+  .sidebar-footer{border-top:1px solid var(--stone-200); padding:14px 16px;}
+  .sidebar-user-name{font-size:14px; font-weight:500; color:var(--stone-900); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .sidebar-user-role{font-size:12px; color:var(--stone-500); margin:1px 0 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+
+  .main-col{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .banner{display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--amber-200); background:var(--amber-50); color:var(--amber-700); padding:8px 24px; font-size:12px;}
+  .main{flex:1; max-width:1152px; width:100%; margin:0 auto; padding:24px;}
+
+  /* buttons */
+  .btn{display:inline-flex; align-items:center; gap:6px; border-radius:8px; padding:8px 14px; font-size:14px; font-weight:500; border:1px solid transparent; cursor:pointer;}
+  .btn-primary{background:var(--teal-700); color:#fff;}
+  .btn-primary:hover{background:var(--teal-800);}
+  .btn-outline{background:#fff; border-color:var(--stone-300); color:var(--stone-700);}
+  .btn-outline:hover{background:var(--stone-50);}
+  .btn-danger{background:var(--rose-600); color:#fff;}
+  .btn-danger:hover{background:var(--rose-700);}
+  .btn-block{width:100%; justify-content:center;}
+  .btn-link{display:block; width:100%; text-align:center; background:none; border:none; color:var(--teal-700); font-size:13px; margin-top:12px; cursor:pointer; padding:4px;}
+  .btn-link:hover{text-decoration:underline;}
+  .icon-btn{border:none; background:none; cursor:pointer; padding:6px; border-radius:8px; color:var(--stone-400);}
+  .icon-btn:hover{background:var(--stone-100); color:var(--teal-700);}
+  .icon-btn.danger:hover{color:var(--rose-600);}
+
+  /* sections / cards */
+  h2.section-title{font-size:14px; font-weight:600; color:var(--stone-700); margin:0 0 12px;}
+  .stack{display:flex; flex-direction:column; gap:24px;}
+  .stat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+  @media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr);}}
+  .stat-card{border:1px solid var(--stone-200); background:#fff; border-radius:12px; padding:16px;}
+  .stat-label{font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--stone-500); margin:0;}
+  .stat-value{font-size:24px; font-weight:600; margin:6px 0 0; color:var(--stone-900);}
+  .stat-value.blue{color:var(--blue-700);}
+  .stat-value.emerald{color:var(--emerald-700);}
+  .stat-value.rose{color:var(--rose-700);}
+  .stat-sub{font-size:12px; color:var(--stone-500); margin:4px 0 0;}
+
+  .panel{border:1px solid var(--stone-200); background:#fff; border-radius:12px; padding:16px;}
+  .two-col{display:grid; grid-template-columns:1fr; gap:24px;}
+  @media(min-width:1024px){.two-col{grid-template-columns:1fr 1fr;}}
+
+  .stage-row{display:flex; align-items:center; gap:12px; margin-bottom:10px;}
+  .stage-row:last-child{margin-bottom:0;}
+  .stage-label{width:160px; flex-shrink:0; font-size:12px; color:var(--stone-600);}
+  .stage-track{flex:1; height:8px; border-radius:999px; background:var(--stone-100); overflow:hidden;}
+  .stage-fill{height:100%; border-radius:999px;}
+  .stage-count{width:24px; flex-shrink:0; text-align:right; font-size:12px; font-weight:500; color:var(--stone-700);}
+
+  table.mini{width:100%; border-collapse:collapse; font-size:12px;}
+  table.mini th{text-align:left; font-weight:500; color:var(--stone-400); padding-bottom:8px;}
+  table.mini th.right, table.mini td.right{text-align:right;}
+  table.mini td{padding:8px 0; border-top:1px solid var(--stone-100); color:var(--stone-600);}
+  table.mini td.first{color:var(--stone-700);}
+
+  .pipeline-item{display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; text-align:left;
+    background:none; border:none; border-top:1px solid var(--stone-100); padding:12px 0; cursor:pointer;}
+  .pipeline-item:first-child{border-top:none;}
+  .pipeline-item:hover{background:var(--stone-50);}
+  .pipeline-main p{margin:0; font-size:14px; font-weight:500; color:var(--stone-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .pipeline-sub{margin:2px 0 0; font-size:12px; color:var(--stone-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .empty-note{padding:24px 0; text-align:center; font-size:14px; color:var(--stone-500);}
+
+  .badge{display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:500;}
+  .badge .dot{width:6px; height:6px; border-radius:999px;}
+  .badge.st-slate{background:var(--stone-100); color:var(--stone-700);}
+  .badge .dot.d-slate{background:var(--stone-400);}
+  .badge.st-amber{background:var(--amber-100); color:var(--amber-800);}
+  .badge .dot.d-amber{background:var(--amber-500);}
+  .badge.st-blue{background:var(--blue-100); color:var(--blue-800);}
+  .badge .dot.d-blue{background:var(--blue-500);}
+  .badge.st-emerald{background:var(--emerald-100); color:var(--emerald-800);}
+  .badge .dot.d-emerald{background:var(--emerald-500);}
+  .badge.st-rose{background:var(--rose-100); color:var(--rose-800);}
+  .badge .dot.d-rose{background:var(--rose-600);}
+
+  .status-pill{display:inline-flex; align-items:center; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:500;}
+  .status-pill.available{background:var(--emerald-100); color:var(--emerald-800);}
+  .status-pill.occupied{background:var(--stone-200); color:var(--stone-700);}
+  .status-pill.active{background:var(--amber-100); color:var(--amber-800);}
+
+  /* toolbar / filters */
+  .toolbar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px;}
+  .search-wrap{position:relative; flex:1; min-width:200px;}
+  .search-wrap .icon{position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--stone-400); pointer-events:none;}
+  .search-wrap input{padding-left:34px;}
+  .input, select.input, textarea.input{
+    width:100%; border:1px solid var(--stone-300); background:#fff; border-radius:8px; padding:8px 12px;
+    font-size:14px; color:var(--stone-900); outline:none; font-family:inherit;
+  }
+  .input:focus{border-color:var(--teal-700); box-shadow:0 0 0 1px var(--teal-700);}
+  select.input.auto{width:auto;}
+  textarea.input{resize:vertical;}
+
+  /* table */
+  .table-wrap{border:1px solid var(--stone-200); background:#fff; border-radius:12px; overflow:hidden;}
+  .table-scroll{overflow-x:auto;}
+  table.data{width:100%; min-width:900px; border-collapse:collapse; text-align:left; font-size:14px;}
+  table.data.narrow{min-width:700px;}
+  table.data thead{background:var(--stone-50);}
+  table.data th{padding:12px 16px; font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--stone-500);}
+  table.data th.right{text-align:right;}
+  table.data td{padding:12px 16px; border-top:1px solid var(--stone-100); color:var(--stone-600); vertical-align:top;}
+  table.data td.right{text-align:right;}
+  table.data tbody tr:hover{background:var(--stone-50);}
+  .cell-title{margin:0; font-weight:500; color:var(--stone-900);}
+  .cell-sub{margin:2px 0 0; font-size:12px; color:var(--stone-500);}
+  .row-actions{display:flex; justify-content:flex-end; gap:4px;}
+  .empty-state{border:1px dashed var(--stone-300); background:#fff; border-radius:12px; padding:56px 16px; text-align:center;}
+  .empty-state p.title{margin:0; font-size:14px; font-weight:500; color:var(--stone-700);}
+  .empty-state p.sub{margin:4px 0 0; font-size:12px; color:var(--stone-500);}
+
+  .property-block{margin-bottom:24px;}
+  .property-block:last-child{margin-bottom:0;}
+  .property-heading{display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--stone-700); margin:0 0 8px;}
+  .property-heading .icon{color:var(--teal-700);}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; z-index:50; background:rgba(28,25,23,.5); display:flex; align-items:center; justify-content:center; padding:16px;}
+  .modal{width:100%; max-width:640px; max-height:90vh; overflow-y:auto; background:#fff; border-radius:16px; box-shadow:0 20px 50px rgba(0,0,0,.25);}
+  .modal.narrow{max-width:420px;}
+  .modal.confirm{max-width:380px; padding:24px;}
+  .modal-header{display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--stone-200); padding:16px 24px;}
+  .modal-header h2{font-size:16px; font-weight:600; margin:0; color:var(--stone-900);}
+  .modal-body{padding:20px 24px; display:flex; flex-direction:column; gap:16px;}
+  .modal-footer{display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--stone-200); padding:16px 24px;}
+  .field-label{display:block; font-size:12px; font-weight:500; color:var(--stone-600); margin-bottom:4px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .form-error{display:flex; align-items:center; gap:8px; background:var(--rose-50); color:var(--rose-700); border-radius:8px; padding:8px 12px; font-size:14px;}
+  .estimate-line{font-size:14px; color:var(--stone-500); margin:0;}
+  .estimate-line b{color:var(--stone-800); font-weight:500;}
+
+  /* login */
+  .login-page{min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--stone-50); padding:16px;}
+  .login-card{width:100%; max-width:380px; background:#fff; border:1px solid var(--stone-200); border-radius:16px; padding:28px; box-shadow:0 1px 2px rgba(0,0,0,.04);}
+  .login-brand{display:flex; align-items:center; gap:10px; margin-bottom:24px;}
+  .login-brand .mark{width:36px; height:36px; border-radius:8px; background:var(--teal-700); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .login-lede{font-size:14px; color:var(--stone-600); margin:0 0 20px;}
+  .login-fields{display:flex; flex-direction:column; gap:16px;}
+
+  .spinner-wrap{display:flex; align-items:center; justify-content:center;}
+  .spinner-wrap.full{min-height:100vh;}
+  .spinner-wrap.h96{height:384px;}
+  .spinner{color:var(--teal-700);}
+
+  @media (max-width:720px){
+    .grid-2{grid-template-columns:1fr;}
+    .sidebar{width:76px;}
+    .sidebar-brand h1, .nav-item span, .sidebar-user-name, .sidebar-user-role{display:none;}
+    .sidebar-brand{text-align:center;}
+    .nav-item{justify-content:center;}
+    .btn-block span{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* ---------------------------------------------------------------------- */
+/* Data                                                                    */
+/* ---------------------------------------------------------------------- */
+const PROPERTIES = [
+  "Vine Building", "Diaz Property", "Victoria Property",
+  "Menakor Property", "Ruasol Property", "E&M Building", "Other / TBD",
+];
+
+const CATEGORY_CONCEPTS = {
+  "Creative and Cultural": ["Art Gallery", "Art Studio", "Art Workshop", "Craft Store", "Bookstore", "Concept Store", "Makerspace", "Exhibition Space", "Creative Studio", "Design Studio"],
+  "Food and Beverage": ["Café / Coffee Shop", "Specialty Drink", "Restaurant", "Bistro", "Bakery", "Dessert Shop", "Bar & Restaurant", "Cocktail Bar", "Wine Bar", "Specialty Food"],
+  "Retail": ["Fashion", "Beauty", "Home & Lifestyle", "Specialty Retail", "Gift/ Souvenir", "Multi-brand Retail"],
+  "Wellness": ["Fitness Studio", "Yoga/ Pilates", "Salon", "Spa", "Wellness Center"],
+  "Office": ["Coworking Space", "Private Office"],
+  "Entertainment": ["Live Music", "Performance Space", "Event Venue", "Gaming/ Hobby", "Experience Space"],
+};
+const CATEGORIES = Object.keys(CATEGORY_CONCEPTS);
+
+const STATUSES = ["Inquired", "Pending Requirements", "Under Evaluation", "Awarded/ Leased", "Lost/ Inactive"];
+
+const STATUS_STYLE = {
+  "Inquired": "slate",
+  "Pending Requirements": "amber",
+  "Under Evaluation": "blue",
+  "Awarded/ Leased": "emerald",
+  "Lost/ Inactive": "rose",
+};
+
+const SEED_LISTINGS = [
+  ["Vine Building", "V101"], ["Vine Building", "V102"], ["Vine Building", "V103"],
+  ["Vine Building", "V201"], ["Vine Building", "V202"], ["Vine Building", "V301"],
+  ["Vine Building", "V302"], ["Vine Building", "V303"], ["Vine Building", "V304"],
+  ["Vine Building", "V401"], ["Vine Building", "V402"], ["Vine Building", "V501"],
+  ["Vine Building", "V502A"], ["Vine Building", "V502B"],
+  ["Diaz Property", "Diaz Property"],
+  ["Victoria Property", "Victoria Property"],
+  ["Menakor Property", "Men- Unit A&B"], ["Menakor Property", "Men- Unit C"], ["Menakor Property", "Men- Unit D"],
+  ["Ruasol Property", "Ruasol Property"],
+].map(([property, unit], i) => ({
+  id: `L${i + 1}`, property, unit, floorArea: "", askingRate: "", notes: "",
+}));
+
+const SEED_TENANTS = [
+  {
+    id: "T1", dateInquired: "2026-02-07", brand: "(New Concept: Shisha Lounge Bar)",
+    category: "Food and Beverage", concept: "Bar & Restaurant", contact: 'Oussama "Sam" Bouteldja',
+    mobile: "97433665760", email: "Belliniluca314@gmail.com", sqm: "41-60 sq.m",
+    property: "Vine Building", unit: "V202",
+    remarks: "07/24 - Emailed Sam the requirements for application",
+    unitViewing: "", foodTasting: "", status: "Inquired",
+  },
+  {
+    id: "T2", dateInquired: "2026-03-17", brand: "Vito's BBQ",
+    category: "Food and Beverage", concept: "Specialty Food", contact: "Natalia Rivera",
+    mobile: "9173100172", email: "vbbq.natalia@gmail.com", sqm: "25-40 sq.m",
+    property: "Vine Building", unit: "V102",
+    remarks: "Pending submission of application requirements c/o Ms. Nat",
+    unitViewing: "2026-03-17", foodTasting: "2026-03-17", status: "Pending Requirements",
+  },
+  {
+    id: "T3", dateInquired: "2026-03-26", brand: "(New Concept: Café)",
+    category: "Food and Beverage", concept: "Café / Coffee Shop", contact: "Abhishek Chaturvedi",
+    mobile: "9616400581", email: "Abhishek28feb1995@gmail.com", sqm: "41-60 sq.m",
+    property: "Vine Building", unit: "V202",
+    remarks: "07/24 For confirmation with friends. Follow up on July 30.",
+    unitViewing: "", foodTasting: "", status: "Pending Requirements",
+  },
+  {
+    id: "T4", dateInquired: "2026-08-14", brand: "(New Concept: Korean Cuisine)",
+    category: "Food and Beverage", concept: "Specialty Food", contact: "Marco Calderon",
+    mobile: "9276227621", email: "marco112922.cclim@gmail.com", sqm: "120 sq.m",
+    property: "Victoria Property", unit: "Victoria Property",
+    remarks: "To schedule ocular inspection - August 14",
+    unitViewing: "", foodTasting: "", status: "Inquired",
+  },
+];
+
+const STORAGE_KEY = "plud-leasing-tracker-data";
+const USER_STORAGE_KEY = "plud-leasing-tracker-user";
+const ACCOUNT_KEY = "plud-leasing-tracker-account";
+
+/* ---------------------------------------------------------------------- */
+/* Helpers                                                                 */
+/* ---------------------------------------------------------------------- */
+const uid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+const keyOf = (property, unit) => (property && unit ? `${property}|${unit}` : "");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = (d) => {
+  if (!d) return "—";
+  const dt = new Date(d + "T00:00:00");
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+const fmtMoney = (n) => (n || n === 0 ? `₱${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—");
+
+async function hashPassword(password, salt) {
+  const enc = new TextEncoder();
+  const data = enc.encode(`${salt}:${password}`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function randomSalt() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function computeListingStatus(listingKey, tenants) {
+  const matches = tenants.filter((t) => keyOf(t.property, t.unit) === listingKey);
+  if (matches.some((t) => t.status === "Awarded/ Leased")) return { label: "Occupied", kind: "occupied", count: matches.length };
+  const active = matches.filter((t) => ["Inquired", "Pending Requirements", "Under Evaluation"].includes(t.status)).length;
+  if (active > 0) return { label: `${active} Active Inquir${active === 1 ? "y" : "ies"}`, kind: "active", count: matches.length, active };
+  return { label: "Available", kind: "available", count: matches.length };
+}
+
+function unitsByProperty() {
+  const map = {};
+  state.listings.forEach((l) => {
+    if (!map[l.property]) map[l.property] = [];
+    if (!map[l.property].includes(l.unit)) map[l.property].push(l.unit);
+  });
+  return map;
+}
+
+function icon(name, size, cls) {
+  size = size || 16; cls = cls || "";
+  const paths = {
+    dashboard: '<rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+    building: '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"></path><path d="M10 6h4"></path><path d="M10 10h4"></path><path d="M10 14h4"></path><path d="M10 18h4"></path>',
+    plus: '<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
+    pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>',
+    trash: '<path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
+    x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
+    search: '<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
+    mappin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle>',
+    alert: '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>',
+    loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"></path>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
+    lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+  };
+  return `<svg class="icon ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* State                                                                   */
+/* ---------------------------------------------------------------------- */
+const state = {
+  user: null,
+  account: null,
+  userLoading: true,
+  tab: "dashboard",
+  tenants: [],
+  listings: [],
+  loading: true,
+  saveError: "",
+  editingTenant: null,
+  showNewTenant: false,
+  deletingTenantId: null,
+  editingListing: null,
+  tenantSearch: "",
+  tenantStatusFilter: "All",
+  tenantPropertyFilter: "All",
+  formError: "",
+  loginError: "",
+};
+
+let saveTimer = null;
+
+/* ---------------------------------------------------------------------- */
+/* Persistence                                                             */
+/* ---------------------------------------------------------------------- */
+async function init() {
+  try {
+    const accRes = await window.storage.get(ACCOUNT_KEY, false);
+    if (accRes && accRes.value) state.account = JSON.parse(accRes.value);
+  } catch (e) { /* no account saved yet */ }
+  try {
+    const res = await window.storage.get(USER_STORAGE_KEY, false);
+    if (res && res.value) state.user = JSON.parse(res.value);
+  } catch (e) { /* no active session */ }
+  state.userLoading = false;
+  if (state.user) await loadData();
+  render();
+}
+
+async function loadData() {
+  state.loading = true;
+  try {
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if (res && res.value) {
+      const parsed = JSON.parse(res.value);
+      state.tenants = parsed.tenants || SEED_TENANTS;
+      state.listings = parsed.listings || SEED_LISTINGS;
+    } else {
+      state.tenants = SEED_TENANTS;
+      state.listings = SEED_LISTINGS;
+    }
+  } catch (e) {
+    state.tenants = SEED_TENANTS;
+    state.listings = SEED_LISTINGS;
+  }
+  state.loading = false;
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      const res = await window.storage.set(STORAGE_KEY, JSON.stringify({ tenants: state.tenants, listings: state.listings }), false);
+      state.saveError = res ? "" : "Changes aren't saving right now — they'll stay for this session.";
+    } catch (e) {
+      state.saveError = "Changes aren't saving right now — they'll stay for this session.";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  }, 400);
+}
+
+async function signup(name, role, password) {
+  const salt = randomSalt();
+  const passwordHash = await hashPassword(password, salt);
+  state.account = { name: name.trim(), role: (role || "").trim(), salt, passwordHash };
+  try { await window.storage.set(ACCOUNT_KEY, JSON.stringify(state.account), false); } catch (e) {}
+  state.user = { name: state.account.name, role: state.account.role };
+  try { await window.storage.set(USER_STORAGE_KEY, JSON.stringify(state.user), false); } catch (e) {}
+  state.loginError = "";
+  await loadData();
+  render();
+}
+
+async function loginWithPassword(name, password) {
+  const acc = state.account;
+  if (!acc || acc.name.toLowerCase() !== name.trim().toLowerCase()) {
+    setLoginError("No account found with that name.");
+    return;
+  }
+  const hash = await hashPassword(password, acc.salt);
+  if (hash !== acc.passwordHash) {
+    setLoginError("Incorrect password.");
+    return;
+  }
+  state.user = { name: acc.name, role: acc.role };
+  try { await window.storage.set(USER_STORAGE_KEY, JSON.stringify(state.user), false); } catch (e) {}
+  state.loginError = "";
+  await loadData();
+  render();
+}
+
+async function logout() {
+  state.user = null;
+  try { await window.storage.delete(USER_STORAGE_KEY, false); } catch (e) {}
+  render();
+}
+
+async function clearAccount() {
+  state.account = null;
+  state.user = null;
+  state.loginError = "";
+  try { await window.storage.delete(ACCOUNT_KEY, false); } catch (e) {}
+  try { await window.storage.delete(USER_STORAGE_KEY, false); } catch (e) {}
+  render();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Derived data                                                            */
+/* ---------------------------------------------------------------------- */
+function listingsComputed() {
+  return state.listings.map((l) => ({ ...l, ...computeListingStatus(keyOf(l.property, l.unit), state.tenants) }));
+}
+
+function computeStats() {
+  const tenants = state.tenants;
+  const lc = listingsComputed();
+  const totalInquiries = tenants.length;
+  const awarded = tenants.filter((t) => t.status === "Awarded/ Leased").length;
+  const lost = tenants.filter((t) => t.status === "Lost/ Inactive").length;
+  const active = totalInquiries - awarded - lost;
+
+  const totalUnits = lc.length;
+  const available = lc.filter((l) => l.kind === "available").length;
+  const occupied = lc.filter((l) => l.kind === "occupied").length;
+  const occupancyRate = totalUnits ? occupied / totalUnits : 0;
+
+  const byStage = STATUSES.map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
+
+  const byProperty = PROPERTIES.filter((p) => lc.some((l) => l.property === p)).map((p) => {
+    const units = lc.filter((l) => l.property === p);
+    const total = units.length;
+    const avail = units.filter((l) => l.kind === "available").length;
+    const occ = units.filter((l) => l.kind === "occupied").length;
+    return { property: p, total, available: avail, occupancyPct: total ? occ / total : 0 };
+  });
+
+  const pipeline = tenants
+    .filter((t) => t.status !== "Awarded/ Leased" && t.status !== "Lost/ Inactive")
+    .slice()
+    .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""))
+    .slice(0, 8);
+
+  return { totalInquiries, awarded, lost, active, totalUnits, available, occupied, occupancyRate, byStage, byProperty, pipeline };
+}
+
+function filteredTenants() {
+  return state.tenants
+    .filter((t) => (state.tenantStatusFilter === "All" ? true : t.status === state.tenantStatusFilter))
+    .filter((t) => (state.tenantPropertyFilter === "All" ? true : t.property === state.tenantPropertyFilter))
+    .filter((t) => {
+      if (!state.tenantSearch.trim()) return true;
+      const q = state.tenantSearch.toLowerCase();
+      return [t.brand, t.contact, t.concept, t.property, t.unit, t.email].some((v) => (v || "").toLowerCase().includes(q));
+    })
+    .slice()
+    .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
+}
+
+/* ---------------------------------------------------------------------- */
+/* Badge / small components                                               */
+/* ---------------------------------------------------------------------- */
+function badgeHtml(status) {
+  const cls = STATUS_STYLE[status] || "slate";
+  return `<span class="badge st-${cls}"><span class="dot d-${cls}"></span>${esc(status)}</span>`;
+}
+
+function bannerHtml() {
+  if (!state.saveError) return `<div id="save-banner"></div>`;
+  return `<div id="save-banner" class="banner">${icon("alert", 14)} ${esc(state.saveError)}</div>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Screens: spinner / login                                                */
+/* ---------------------------------------------------------------------- */
+function spinnerHtml(variant) {
+  return `<div class="spinner-wrap ${variant}"><span class="spinner">${icon("loader", 28, "spin")}</span></div>`;
+}
+
+function loginScreenHtml() {
+  const hasAccount = !!state.account;
+  return `
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="mark">${icon("lock", 16)}</div>
+        <div>
+          <p style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--teal-700);margin:0 0 2px;">PLUD</p>
+          <h1 style="font-size:15px;font-weight:600;margin:0;color:var(--stone-900);">Leasing tracker</h1>
+        </div>
+      </div>
+      <p class="login-lede">${hasAccount ? "Sign in to view and manage the leasing pipeline." : "Create a sign-in for this leasing tracker."}</p>
+      <div id="login-error">${state.loginError ? `<div class="form-error" style="margin-bottom:16px;">${icon("alert", 16)} ${esc(state.loginError)}</div>` : ""}</div>
+      <div class="login-fields">
+        <label>
+          <span class="field-label">Your name</span>
+          <input id="auth-name" class="input" placeholder="e.g. Sam Bouteldja" value="${hasAccount ? esc(state.account.name) : ""}" ${hasAccount ? "readonly" : "autofocus"} onkeydown="onAuthKeydown(event)" />
+        </label>
+        ${!hasAccount ? `
+        <label>
+          <span class="field-label">Role (optional)</span>
+          <input id="auth-role" class="input" placeholder="e.g. Leasing Manager" onkeydown="onAuthKeydown(event)" />
+        </label>` : ""}
+        <label>
+          <span class="field-label">Password</span>
+          <input type="password" id="auth-password" class="input" placeholder="${hasAccount ? "Enter your password" : "Create a password"}" ${hasAccount ? "autofocus" : ""} autocomplete="${hasAccount ? "current-password" : "new-password"}" onkeydown="onAuthKeydown(event)" />
+        </label>
+        ${!hasAccount ? `
+        <label>
+          <span class="field-label">Confirm password</span>
+          <input type="password" id="auth-password2" class="input" placeholder="Re-enter password" autocomplete="new-password" onkeydown="onAuthKeydown(event)" />
+        </label>` : ""}
+      </div>
+      <button type="button" class="btn btn-primary btn-block" style="margin-top:24px;" onclick="onAuthSubmit(event)">${hasAccount ? "Sign in" : "Create account & sign in"}</button>
+      ${hasAccount ? `<button type="button" class="btn-link" onclick="onForgotPassword()">Forgot password? Reset sign-in</button>` : ""}
+    </div>
+  </div>`;
+}
+
+function onAuthKeydown(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    onAuthSubmit(e);
+  }
+}
+
+function setLoginError(msg) {
+  state.loginError = msg;
+  const el = document.getElementById("login-error");
+  if (el) el.innerHTML = `<div class="form-error" style="margin-bottom:16px;">${icon("alert", 16)} ${esc(msg)}</div>`;
+}
+
+async function onAuthSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const name = document.getElementById("auth-name").value;
+  const password = document.getElementById("auth-password").value;
+  if (!name.trim()) { setLoginError("Enter your name."); return false; }
+  if (!password) { setLoginError("Enter a password."); return false; }
+
+  if (state.account) {
+    await loginWithPassword(name, password);
+  } else {
+    const role = document.getElementById("auth-role").value;
+    const password2 = document.getElementById("auth-password2").value;
+    if (password.length < 4) { setLoginError("Password must be at least 4 characters."); return false; }
+    if (password !== password2) { setLoginError("Passwords don't match."); return false; }
+    await signup(name, role, password);
+  }
+  return false;
+}
+
+function onForgotPassword() {
+  const ok = confirm("This clears your saved sign-in (name + password) but keeps your tenant and listing data. Continue?");
+  if (!ok) return;
+  clearAccount();
+}
+
+/* ---------------------------------------------------------------------- */
+/* App shell                                                               */
+/* ---------------------------------------------------------------------- */
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "tenants", label: "Prospective tenants", icon: "users" },
+  { id: "listings", label: "PLUD listings", icon: "building" },
+];
+
+function appShellHtml() {
+  return `
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <p class="eyebrow">PLUD</p>
+        <h1>Leasing tracker</h1>
+      </div>
+      <nav class="nav">
+        ${NAV_ITEMS.map((n) => `
+          <button class="nav-item ${state.tab === n.id ? "active" : ""}" onclick="setTab('${n.id}')">
+            ${icon(n.icon, 16)} <span>${n.label}</span>
+          </button>`).join("")}
+      </nav>
+      <div class="sidebar-footer">
+        <p class="sidebar-user-name">${esc(state.user.name)}</p>
+        ${state.user.role ? `<p class="sidebar-user-role">${esc(state.user.role)}</p>` : `<div style="margin-bottom:10px;"></div>`}
+        <button class="btn btn-outline btn-block" onclick="logout()">${icon("logout", 15)} <span>Sign out</span></button>
+      </div>
+    </aside>
+    <div class="main-col">
+      ${bannerHtml()}
+      <main class="main">
+        <div id="tab-content">${tabContentHtml()}</div>
+      </main>
+    </div>
+  </div>
+  ${(state.showNewTenant || state.editingTenant) ? tenantModalHtml() : ""}
+  ${state.editingListing ? listingModalHtml() : ""}
+  ${state.deletingTenantId ? confirmDialogHtml() : ""}
+  `;
+}
+
+function tabContentHtml() {
+  if (state.tab === "dashboard") return dashboardHtml();
+  if (state.tab === "tenants") return tenantsTabHtml();
+  if (state.tab === "listings") return listingsTabHtml();
+  return "";
+}
+
+function setTab(id) {
+  state.tab = id;
+  render();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Dashboard                                                               */
+/* ---------------------------------------------------------------------- */
+function dashboardHtml() {
+  const s = computeStats();
+  const maxStage = Math.max(1, ...s.byStage.map((x) => x.count));
+  return `
+  <div class="stack">
+    <section>
+      <h2 class="section-title">Leasing pipeline</h2>
+      <div class="stat-grid">
+        <div class="stat-card"><p class="stat-label">Total inquiries</p><p class="stat-value">${s.totalInquiries}</p></div>
+        <div class="stat-card"><p class="stat-label">Active pipeline</p><p class="stat-value blue">${s.active}</p></div>
+        <div class="stat-card"><p class="stat-label">Awarded / leased</p><p class="stat-value emerald">${s.awarded}</p></div>
+        <div class="stat-card"><p class="stat-label">Lost / inactive</p><p class="stat-value rose">${s.lost}</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Listings inventory</h2>
+      <div class="stat-grid">
+        <div class="stat-card"><p class="stat-label">Total units</p><p class="stat-value">${s.totalUnits}</p></div>
+        <div class="stat-card"><p class="stat-label">Available</p><p class="stat-value emerald">${s.available}</p></div>
+        <div class="stat-card"><p class="stat-label">Occupied</p><p class="stat-value">${s.occupied}</p></div>
+        <div class="stat-card"><p class="stat-label">Occupancy rate</p><p class="stat-value">${Math.round(s.occupancyRate * 100)}%</p></div>
+      </div>
+    </section>
+
+    <div class="two-col">
+      <section class="panel">
+        <h2 class="section-title">Pipeline by stage</h2>
+        ${s.byStage.map(({ stage, count }) => `
+          <div class="stage-row">
+            <span class="stage-label">${esc(stage)}</span>
+            <div class="stage-track"><div class="stage-fill d-${STATUS_STYLE[stage]}" style="width:${(count / maxStage) * 100}%; background:var(--${{slate:"stone-400",amber:"amber-500",blue:"blue-500",emerald:"emerald-500",rose:"rose-600"}[STATUS_STYLE[stage]]});"></div></div>
+            <span class="stage-count">${count}</span>
+          </div>`).join("")}
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Listings by property</h2>
+        <table class="mini">
+          <thead><tr><th>Property</th><th class="right">Units</th><th class="right">Avail.</th><th class="right">Occ. %</th></tr></thead>
+          <tbody>
+            ${s.byProperty.map((p) => `
+              <tr>
+                <td class="first">${esc(p.property)}</td>
+                <td class="right">${p.total}</td>
+                <td class="right">${p.available}</td>
+                <td class="right">${Math.round(p.occupancyPct * 100)}%</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2 class="section-title">Active pipeline, most recent first</h2>
+      ${s.pipeline.length === 0 ? `<p class="empty-note">No active inquiries right now.</p>` : `
+        <div>
+          ${s.pipeline.map((t) => `
+            <button class="pipeline-item" onclick="openEditTenant('${t.id}')">
+              <div class="pipeline-main" style="min-width:0;">
+                <p>${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
+                <p class="pipeline-sub">${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""} · ${esc(t.contact)} · ${fmtDate(t.dateInquired)}</p>
+              </div>
+              ${badgeHtml(t.status)}
+            </button>`).join("")}
+        </div>`}
+    </section>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Tenants tab                                                             */
+/* ---------------------------------------------------------------------- */
+function tenantsTabHtml() {
+  return `
+  <div>
+    <div class="toolbar">
+      <div class="search-wrap">
+        ${icon("search", 16)}
+        <input id="tenant-search" class="input" placeholder="Search brand, contact, unit..." value="${esc(state.tenantSearch)}" oninput="onTenantSearch(this.value)" />
+      </div>
+      <select class="input auto" onchange="onTenantStatusFilter(this.value)">
+        <option value="All" ${state.tenantStatusFilter === "All" ? "selected" : ""}>All statuses</option>
+        ${STATUSES.map((s) => `<option value="${esc(s)}" ${state.tenantStatusFilter === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+      </select>
+      <select class="input auto" onchange="onTenantPropertyFilter(this.value)">
+        <option value="All" ${state.tenantPropertyFilter === "All" ? "selected" : ""}>All properties</option>
+        ${PROPERTIES.map((p) => `<option value="${esc(p)}" ${state.tenantPropertyFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}
+      </select>
+      <button class="btn btn-primary" onclick="openNewTenant()">${icon("plus", 16)} New inquiry</button>
+    </div>
+    <div id="tenant-results">${tenantResultsHtml()}</div>
+  </div>`;
+}
+
+function tenantResultsHtml() {
+  const rows = filteredTenants();
+  if (rows.length === 0) {
+    return `
+    <div class="empty-state">
+      <p class="title">No inquiries match these filters.</p>
+      <p class="sub">Try clearing search or filters, or add a new inquiry.</p>
+    </div>`;
+  }
+  return `
+  <div class="table-wrap"><div class="table-scroll">
+    <table class="data">
+      <thead><tr>
+        <th>Date</th><th>Brand / tenant</th><th>Category</th><th>Property / unit</th><th>Contact</th><th>Status</th><th class="right">Actions</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((t) => `
+          <tr>
+            <td style="white-space:nowrap;">${fmtDate(t.dateInquired)}</td>
+            <td>
+              <p class="cell-title">${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
+              <p class="cell-sub">${esc(t.concept)}</p>
+            </td>
+            <td>${esc(t.category)}</td>
+            <td>${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</td>
+            <td>
+              <p style="margin:0;color:var(--stone-800);">${esc(t.contact)}</p>
+              <p class="cell-sub">${esc(t.mobile)}</p>
+            </td>
+            <td>${badgeHtml(t.status)}</td>
+            <td>
+              <div class="row-actions">
+                <button class="icon-btn" onclick="openEditTenant('${t.id}')" aria-label="Edit">${icon("pencil", 15)}</button>
+                <button class="icon-btn danger" onclick="askDeleteTenant('${t.id}')" aria-label="Delete">${icon("trash", 15)}</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function onTenantSearch(v) {
+  state.tenantSearch = v;
+  document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
+}
+function onTenantStatusFilter(v) {
+  state.tenantStatusFilter = v;
+  document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
+}
+function onTenantPropertyFilter(v) {
+  state.tenantPropertyFilter = v;
+  document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Listings tab                                                            */
+/* ---------------------------------------------------------------------- */
+function listingsTabHtml() {
+  const lc = listingsComputed();
+  const properties = PROPERTIES.filter((p) => lc.some((l) => l.property === p));
+  return `
+  <div class="stack">
+    ${properties.map((property) => `
+      <section class="property-block">
+        <h2 class="property-heading">${icon("mappin", 14)} ${esc(property)}</h2>
+        <div class="table-wrap"><div class="table-scroll">
+          <table class="data narrow">
+            <thead><tr>
+              <th>Unit</th><th>Floor area</th><th>Asking rate</th><th>Est. monthly rent</th><th>Status</th><th class="right">Inquiries</th><th class="right">Actions</th>
+            </tr></thead>
+            <tbody>
+              ${lc.filter((l) => l.property === property).map((l) => `
+                <tr>
+                  <td style="font-weight:500;color:var(--stone-900);">${esc(l.unit)}</td>
+                  <td>${l.floorArea ? esc(l.floorArea) + " sqm" : "—"}</td>
+                  <td>${l.askingRate ? "₱" + Number(l.askingRate).toLocaleString() + "/sqm" : "—"}</td>
+                  <td>${l.floorArea && l.askingRate ? fmtMoney(Number(l.floorArea) * Number(l.askingRate)) : "—"}</td>
+                  <td><span class="status-pill ${l.kind}">${esc(l.label)}</span></td>
+                  <td class="right">${l.count}</td>
+                  <td class="right">
+                    <button class="icon-btn" onclick="openEditListing('${l.id}')" aria-label="Edit">${icon("pencil", 15)}</button>
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div></div>
+      </section>`).join("")}
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Tenant modal                                                            */
+/* ---------------------------------------------------------------------- */
+function tenantModalHtml() {
+  const t = state.editingTenant || {
+    dateInquired: new Date().toISOString().slice(0, 10),
+    brand: "", category: CATEGORIES[0], concept: "",
+    contact: "", mobile: "", email: "", sqm: "",
+    property: "", unit: "", remarks: "", unitViewing: "", foodTasting: "",
+    status: "Inquired",
+  };
+  const concepts = CATEGORY_CONCEPTS[t.category] || [];
+  const units = t.property ? (unitsByProperty()[t.property] || []) : [];
+
+  return `
+  <div class="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>${state.editingTenant ? "Edit inquiry" : "New inquiry"}</h2>
+        <button class="icon-btn" onclick="closeTenantModal()" aria-label="Close">${icon("x", 18)}</button>
+      </div>
+      <div class="modal-body">
+        <div id="t-error">${state.formError ? `<div class="form-error">${icon("alert", 16)} ${esc(state.formError)}</div>` : ""}</div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Date inquired</span><input type="date" id="t-dateInquired" class="input" value="${esc(t.dateInquired)}" /></label>
+          <label><span class="field-label">Status</span>
+            <select id="t-status" class="input">
+              ${STATUSES.map((s) => `<option value="${esc(s)}" ${t.status === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+
+        <label><span class="field-label">Brand / tenant name</span>
+          <input id="t-brand" class="input" placeholder="e.g. Vito's BBQ, or (New Concept: Café)" value="${esc(t.brand)}" />
+        </label>
+
+        <div class="grid-2">
+          <label><span class="field-label">Category</span>
+            <select id="t-category" class="input" onchange="onCategoryChange()">
+              ${CATEGORIES.map((c) => `<option value="${esc(c)}" ${t.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
+            </select>
+          </label>
+          <label><span class="field-label">Concept</span>
+            <select id="t-concept" class="input">
+              <option value="">Select concept</option>
+              ${concepts.map((c) => `<option value="${esc(c)}" ${t.concept === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Contact person</span><input id="t-contact" class="input" value="${esc(t.contact)}" /></label>
+          <label><span class="field-label">Space requirement</span><input id="t-sqm" class="input" placeholder="e.g. 41-60 sq.m" value="${esc(t.sqm)}" /></label>
+        </div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Mobile number</span><input id="t-mobile" class="input" value="${esc(t.mobile)}" /></label>
+          <label><span class="field-label">Email address</span><input type="email" id="t-email" class="input" value="${esc(t.email)}" /></label>
+        </div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Property</span>
+            <select id="t-property" class="input" onchange="onPropertyChange()">
+              <option value="">Select property</option>
+              ${PROPERTIES.map((p) => `<option value="${esc(p)}" ${t.property === p ? "selected" : ""}>${esc(p)}</option>`).join("")}
+            </select>
+          </label>
+          <label><span class="field-label">Unit</span>
+            <select id="t-unit" class="input" ${!t.property ? "disabled" : ""}>
+              <option value="">Select unit</option>
+              ${units.map((u) => `<option value="${esc(u)}" ${t.unit === u ? "selected" : ""}>${esc(u)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Unit viewing date</span><input type="date" id="t-unitViewing" class="input" value="${esc(t.unitViewing)}" /></label>
+          <label><span class="field-label">Food tasting date</span><input type="date" id="t-foodTasting" class="input" value="${esc(t.foodTasting)}" /></label>
+        </div>
+
+        <label><span class="field-label">Status and remarks</span>
+          <textarea id="t-remarks" class="input" rows="3" placeholder="Budget, preferred unit, notes...">${esc(t.remarks)}</textarea>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeTenantModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTenant()">${state.editingTenant ? "Save changes" : "Add inquiry"}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openNewTenant() { state.showNewTenant = true; state.editingTenant = null; state.formError = ""; render(); }
+function openEditTenant(id) { state.editingTenant = state.tenants.find((t) => t.id === id) || null; state.showNewTenant = false; state.formError = ""; render(); }
+function closeTenantModal() { state.showNewTenant = false; state.editingTenant = null; state.formError = ""; render(); }
+
+function onCategoryChange() {
+  const cat = document.getElementById("t-category").value;
+  const concepts = CATEGORY_CONCEPTS[cat] || [];
+  document.getElementById("t-concept").innerHTML = `<option value="">Select concept</option>` + concepts.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+}
+function onPropertyChange() {
+  const prop = document.getElementById("t-property").value;
+  const units = unitsByProperty()[prop] || [];
+  const sel = document.getElementById("t-unit");
+  sel.innerHTML = `<option value="">Select unit</option>` + units.map((u) => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
+  sel.disabled = !prop;
+}
+
+function saveTenant() {
+  const val = (id) => document.getElementById(id).value;
+  const form = {
+    dateInquired: val("t-dateInquired"),
+    status: val("t-status"),
+    brand: val("t-brand"),
+    category: val("t-category"),
+    concept: val("t-concept"),
+    contact: val("t-contact"),
+    sqm: val("t-sqm"),
+    mobile: val("t-mobile"),
+    email: val("t-email"),
+    property: val("t-property"),
+    unit: val("t-unit"),
+    unitViewing: val("t-unitViewing"),
+    foodTasting: val("t-foodTasting"),
+    remarks: val("t-remarks"),
+  };
+
+  if (!form.contact.trim()) {
+    state.formError = "Enter a contact person before saving.";
+    document.getElementById("t-error").innerHTML = `<div class="form-error">${icon("alert", 16)} ${esc(state.formError)}</div>`;
+    return;
+  }
+  if (!form.property || !form.unit) {
+    state.formError = "Select a property and unit before saving.";
+    document.getElementById("t-error").innerHTML = `<div class="form-error">${icon("alert", 16)} ${esc(state.formError)}</div>`;
+    return;
+  }
+
+  if (state.editingTenant) {
+    const id = state.editingTenant.id;
+    state.tenants = state.tenants.map((t) => (t.id === id ? { ...form, id } : t));
+  } else {
+    state.tenants = [{ ...form, id: uid("T") }, ...state.tenants];
+  }
+  state.showNewTenant = false;
+  state.editingTenant = null;
+  state.formError = "";
+  render();
+  scheduleSave();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Delete confirm                                                          */
+/* ---------------------------------------------------------------------- */
+function askDeleteTenant(id) { state.deletingTenantId = id; render(); }
+function cancelDeleteTenant() { state.deletingTenantId = null; render(); }
+function confirmDeleteTenant() {
+  state.tenants = state.tenants.filter((t) => t.id !== state.deletingTenantId);
+  state.deletingTenantId = null;
+  render();
+  scheduleSave();
+}
+function confirmDialogHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal confirm">
+      <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Delete this inquiry?</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">This removes the tenant inquiry permanently. This can't be undone.</p>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn btn-outline" onclick="cancelDeleteTenant()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteTenant()">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Listing modal                                                          */
+/* ---------------------------------------------------------------------- */
+function openEditListing(id) {
+  state.editingListing = state.listings.find((l) => l.id === id) || null;
+  render();
+}
+function closeListingModal() { state.editingListing = null; render(); }
+
+function listingModalHtml() {
+  const l = state.editingListing;
+  return `
+  <div class="overlay">
+    <div class="modal narrow">
+      <div class="modal-header">
+        <h2>${esc(l.property)} · ${esc(l.unit)}</h2>
+        <button class="icon-btn" onclick="closeListingModal()" aria-label="Close">${icon("x", 18)}</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label><span class="field-label">Floor area (sqm)</span><input type="number" min="0" id="l-floorArea" class="input" value="${esc(l.floorArea)}" oninput="updateListingEstimate()" /></label>
+          <label><span class="field-label">Asking rate (PHP/sqm)</span><input type="number" min="0" id="l-askingRate" class="input" value="${esc(l.askingRate)}" oninput="updateListingEstimate()" /></label>
+        </div>
+        <p class="estimate-line">Est. monthly rent: <b id="l-estimate">${l.floorArea && l.askingRate ? fmtMoney(Number(l.floorArea) * Number(l.askingRate)) : "—"}</b></p>
+        <label><span class="field-label">Notes</span><textarea id="l-notes" class="input" rows="3">${esc(l.notes)}</textarea></label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeListingModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveListing()">Save changes</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateListingEstimate() {
+  const fa = parseFloat(document.getElementById("l-floorArea").value);
+  const ar = parseFloat(document.getElementById("l-askingRate").value);
+  document.getElementById("l-estimate").textContent = (fa && ar) ? fmtMoney(fa * ar) : "—";
+}
+
+function saveListing() {
+  const fa = document.getElementById("l-floorArea").value;
+  const ar = document.getElementById("l-askingRate").value;
+  const notes = document.getElementById("l-notes").value;
+  const id = state.editingListing.id;
+  state.listings = state.listings.map((p) => (p.id === id ? {
+    ...p,
+    floorArea: fa === "" ? "" : Number(fa),
+    askingRate: ar === "" ? "" : Number(ar),
+    notes,
+  } : p));
+  state.editingListing = null;
+  render();
+  scheduleSave();
+}
+
+/* ---------------------------------------------------------------------- */
+/* Render                                                                  */
+/* ---------------------------------------------------------------------- */
+function render() {
+  const root = document.getElementById("root");
+  if (state.userLoading) { root.innerHTML = spinnerHtml("full"); return; }
+  if (!state.user) { root.innerHTML = loginScreenHtml(); return; }
+  if (state.loading) { root.innerHTML = spinnerHtml("h96"); return; }
+  root.innerHTML = appShellHtml();
+}
+
+init();
+</script>
+</body>
+</html>
