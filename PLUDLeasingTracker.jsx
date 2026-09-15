@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LayoutDashboard, Users, Building2, Plus, Pencil, Trash2, X,
   Search, ChevronDown, Phone, Mail, Calendar, MapPin, Check,
-  AlertCircle, Loader2, LogOut, Lock,
+  AlertCircle, Loader2, LogOut,
 } from "lucide-react";
 
 const PROPERTIES = [
@@ -125,9 +125,9 @@ function Badge({ status }) {
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
-      <p className={`mt-1.5 text-2xl font-semibold ${accent || "text-stone-900"}`}>{value}</p>
+    <div className="rounded-lg border border-t-2 border-stone-200 border-t-amber-700 bg-white p-4">
+      <p className="text-xs font-medium text-stone-500">{label}</p>
+      <p className={`mt-1.5 font-serif text-2xl font-semibold ${accent || "text-stone-900"}`}>{value}</p>
       {sub ? <p className="mt-1 text-xs text-stone-500">{sub}</p> : null}
     </div>
   );
@@ -142,7 +142,7 @@ function Field({ label, children }) {
   );
 }
 
-const inputCls = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600";
+const inputCls = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
 function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
   const [form, setForm] = useState(
@@ -175,9 +175,9 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-stone-900">
+          <h2 className="font-serif text-base font-semibold text-stone-900">
             {initial ? "Edit inquiry" : "New inquiry"}
           </h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
@@ -272,7 +272,7 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
           <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
-          <button onClick={handleSave} className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
+          <button onClick={handleSave} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800">
             {initial ? "Save changes" : "Add inquiry"}
           </button>
         </div>
@@ -288,9 +288,9 @@ function ListingModal({ listing, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-stone-900">{listing.property} · {listing.unit}</h2>
+          <h2 className="font-serif text-base font-semibold text-stone-900">{listing.property} · {listing.unit}</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
             <X size={18} />
           </button>
@@ -319,7 +319,7 @@ function ListingModal({ listing, onClose, onSave }) {
           </button>
           <button
             onClick={() => onSave({ ...listing, floorArea: floorArea === "" ? "" : Number(floorArea), askingRate: askingRate === "" ? "" : Number(askingRate), notes })}
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+            className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
           >
             Save changes
           </button>
@@ -332,8 +332,8 @@ function ListingModal({ listing, onClose, onSave }) {
 function ConfirmDialog({ title, body, onCancel, onConfirm }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="text-base font-semibold text-stone-900">{title}</h2>
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="font-serif text-base font-semibold text-stone-900">{title}</h2>
         <p className="mt-2 text-sm text-stone-600">{body}</p>
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onCancel} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
@@ -369,15 +369,15 @@ function LoginScreen({ account, onLoginWithPassword }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4">
+      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-lg border border-stone-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-700 text-white">
-            <Lock size={16} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-amber-700 font-serif text-base text-amber-700">
+            P
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-teal-700">PLUD</p>
-            <h1 className="text-base font-semibold text-stone-900">Leasing tracker</h1>
+            <h1 className="font-serif text-base font-semibold text-stone-900">PLUD</h1>
+            <p className="text-xs text-stone-500">Leasing Tracker</p>
           </div>
         </div>
 
@@ -409,7 +409,7 @@ function LoginScreen({ account, onLoginWithPassword }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-60"
+          className="mt-6 w-full rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
         >
           Sign in
         </button>
@@ -623,7 +623,7 @@ export default function PLUDLeasingTracker() {
   if (userLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50">
-        <Loader2 className="animate-spin text-teal-700" size={28} />
+        <Loader2 className="animate-spin text-amber-700" size={28} />
       </div>
     );
   }
@@ -640,7 +640,7 @@ export default function PLUDLeasingTracker() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center bg-stone-50">
-        <Loader2 className="animate-spin text-teal-700" size={28} />
+        <Loader2 className="animate-spin text-amber-700" size={28} />
       </div>
     );
   }
@@ -653,19 +653,26 @@ export default function PLUDLeasingTracker() {
 
   return (
     <div className="flex min-h-screen bg-stone-50 text-stone-900">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-stone-200 bg-white">
-        <div className="border-b border-stone-200 px-5 py-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-teal-700">PLUD</p>
-          <h1 className="text-lg font-semibold text-stone-900">Leasing tracker</h1>
+      <aside className="flex w-64 shrink-0 flex-col bg-slate-900">
+        <div className="flex items-center gap-2.5 border-b border-slate-800 px-5 py-5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-amber-500 font-serif text-sm text-amber-500">
+            P
+          </div>
+          <div>
+            <h1 className="font-serif text-base font-semibold leading-tight text-stone-100">PLUD</h1>
+            <p className="text-xs text-slate-400">Leasing Tracker</p>
+          </div>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
-                tab === id ? "bg-teal-700 text-white" : "text-stone-600 hover:bg-stone-100"
+              className={`flex w-full items-center gap-2.5 rounded-md border-l-4 px-3 py-2.5 text-left text-sm font-medium transition ${
+                tab === id
+                  ? "border-amber-500 bg-slate-800 text-stone-100"
+                  : "border-transparent text-slate-400 hover:bg-slate-800 hover:text-stone-100"
               }`}
             >
               <Icon size={16} /> {label}
@@ -673,14 +680,14 @@ export default function PLUDLeasingTracker() {
           ))}
         </nav>
 
-        <div className="border-t border-stone-200 px-4 py-4">
+        <div className="border-t border-slate-800 px-4 py-4">
           <div className="mb-3 min-w-0">
-            <p className="truncate text-sm font-medium text-stone-900">{user.name}</p>
-            {user.role ? <p className="truncate text-xs text-stone-500">{user.role}</p> : null}
+            <p className="truncate text-sm font-medium text-stone-100">{user.name}</p>
+            {user.role ? <p className="truncate text-xs text-slate-400">{user.role}</p> : null}
           </div>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
           >
             <LogOut size={15} /> Sign out
           </button>
@@ -699,19 +706,19 @@ export default function PLUDLeasingTracker() {
           <div className="space-y-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h1 className="text-lg font-semibold text-stone-900">Dashboard</h1>
+                <h1 className="font-serif text-lg font-semibold text-stone-900">Dashboard</h1>
                 <p className="text-sm text-stone-500">Pipeline health and listings inventory at a glance.</p>
               </div>
               <button
                 onClick={() => { setShowNewTenant(true); }}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800"
               >
                 <Plus size={16} /> New inquiry
               </button>
             </div>
 
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-stone-700">Leasing pipeline</h2>
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Leasing pipeline</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatCard label="Total inquiries" value={stats.totalInquiries} />
                 <StatCard label="Active pipeline" value={stats.active} accent="text-blue-700" />
@@ -721,7 +728,7 @@ export default function PLUDLeasingTracker() {
             </section>
 
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-stone-700">Listings inventory</h2>
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Listings inventory</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatCard label="Total units" value={stats.totalUnits} />
                 <StatCard label="Available" value={stats.available} accent="text-emerald-700" />
@@ -731,8 +738,8 @@ export default function PLUDLeasingTracker() {
             </section>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <section className="rounded-xl border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-stone-700">Pipeline by stage</h2>
+              <section className="rounded-lg border border-stone-200 bg-white p-4">
+                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Pipeline by stage</h2>
                 <div className="space-y-2.5">
                   {stats.byStage.map(({ stage, count }) => {
                     const max = Math.max(1, ...stats.byStage.map((s) => s.count));
@@ -750,8 +757,8 @@ export default function PLUDLeasingTracker() {
                 </div>
               </section>
 
-              <section className="rounded-xl border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-stone-700">Occupancy by property</h2>
+              <section className="rounded-lg border border-stone-200 bg-white p-4">
+                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Occupancy by property</h2>
                 <div className="space-y-3">
                   {stats.byProperty.map((p) => (
                     <div key={p.property}>
@@ -760,7 +767,7 @@ export default function PLUDLeasingTracker() {
                         <span className="text-stone-500">{p.occupied}/{p.total} occupied · {p.available} avail.</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-stone-100">
-                        <div className="h-full rounded-full bg-teal-700" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
+                        <div className="h-full rounded-full bg-amber-700" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
                       </div>
                     </div>
                   ))}
@@ -769,8 +776,8 @@ export default function PLUDLeasingTracker() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <section className="rounded-xl border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-stone-700">Needs follow-up</h2>
+              <section className="rounded-lg border border-stone-200 bg-white p-4">
+                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Needs follow-up</h2>
                 {stats.needsFollowUp.length === 0 ? (
                   <p className="py-6 text-center text-sm text-stone-500">Nothing stale — every active inquiry has moved in the last two weeks.</p>
                 ) : (
@@ -794,8 +801,8 @@ export default function PLUDLeasingTracker() {
                 )}
               </section>
 
-              <section className="rounded-xl border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-stone-700">Upcoming this week</h2>
+              <section className="rounded-lg border border-stone-200 bg-white p-4">
+                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Upcoming this week</h2>
                 {stats.upcoming.length === 0 ? (
                   <p className="py-6 text-center text-sm text-stone-500">No viewings or tastings scheduled in the next 7 days.</p>
                 ) : (
@@ -820,8 +827,8 @@ export default function PLUDLeasingTracker() {
               </section>
             </div>
 
-            <section className="rounded-xl border border-stone-200 bg-white p-4">
-              <h2 className="mb-3 text-sm font-semibold text-stone-700">Active pipeline, most recent first</h2>
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Active pipeline, most recent first</h2>
               {stats.pipeline.length === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No active inquiries right now.</p>
               ) : (
@@ -869,22 +876,22 @@ export default function PLUDLeasingTracker() {
               </select>
               <button
                 onClick={() => setShowNewTenant(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-sm font-medium text-white hover:bg-teal-800"
+                className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3.5 py-2 text-sm font-medium text-white hover:bg-amber-800"
               >
                 <Plus size={16} /> New inquiry
               </button>
             </div>
 
             {filteredTenants.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-stone-300 bg-white py-14 text-center">
+              <div className="rounded-lg border border-dashed border-stone-300 bg-white py-14 text-center">
                 <p className="text-sm font-medium text-stone-700">No inquiries match these filters.</p>
                 <p className="mt-1 text-xs text-stone-500">Try clearing search or filters, or add a new inquiry.</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+              <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[900px] text-left text-sm">
-                    <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
+                    <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
                       <tr>
                         <th className="px-4 py-3 font-medium">Date</th>
                         <th className="px-4 py-3 font-medium">Brand / tenant</th>
@@ -912,7 +919,7 @@ export default function PLUDLeasingTracker() {
                           <td className="px-4 py-3"><Badge status={t.status} /></td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1">
-                              <button onClick={() => setEditingTenant(t)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-teal-700" aria-label="Edit">
+                              <button onClick={() => setEditingTenant(t)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-amber-700" aria-label="Edit">
                                 <Pencil size={15} />
                               </button>
                               <button onClick={() => setDeletingTenantId(t.id)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
@@ -934,13 +941,13 @@ export default function PLUDLeasingTracker() {
           <div className="space-y-6">
             {PROPERTIES.filter((p) => listingsComputed.some((l) => l.property === p)).map((property) => (
               <section key={property}>
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-stone-700">
-                  <MapPin size={14} className="text-teal-700" /> {property}
+                <h2 className="mb-2 flex items-center gap-2 font-serif text-sm font-semibold text-stone-900">
+                  <MapPin size={14} className="text-amber-700" /> {property}
                 </h2>
-                <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[700px] text-left text-sm">
-                      <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
+                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
                         <tr>
                           <th className="px-4 py-3 font-medium">Unit</th>
                           <th className="px-4 py-3 font-medium">Floor area</th>
@@ -971,7 +978,7 @@ export default function PLUDLeasingTracker() {
                             </td>
                             <td className="px-4 py-3 text-right text-stone-600">{l.count}</td>
                             <td className="px-4 py-3 text-right">
-                              <button onClick={() => setEditingListing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-teal-700" aria-label="Edit">
+                              <button onClick={() => setEditingListing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-amber-700" aria-label="Edit">
                                 <Pencil size={15} />
                               </button>
                             </td>
