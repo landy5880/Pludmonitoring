@@ -288,9 +288,8 @@ const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used f
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY2lheWh4dmtxaG1nY2RmdmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMjU4NTIsImV4cCI6MjEwNDYwMTg1Mn0.nzt3RSE65MrR_Y3lqPiGFwYgdoBnsYDC8ket3GifYuk";
-// Fixed sign-in credential: username "admin", password "admin".
-// The password is never stored in plain text — only a salted SHA-256 hash is compared.
-const DEFAULT_ACCOUNT = { name: "admin", role: "", salt: "plud-fixed-salt-v1", passwordHash: "227f70cfcfdc019515121a9a5c2558bdb0583b15eb55945dd5b7db9acd0e576b" };
+// Sign-in accounts now live in the plud_users table (seeded with a default
+// admin/admin row), rather than a single hard-coded credential.
 
 /* ---------------------------------------------------------------------- */
 /* Helpers                                                                 */
@@ -349,6 +348,7 @@ function icon(name, size, cls) {
     loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"></path>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
     lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+    settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
   };
   return `<svg class="icon ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
 }
@@ -358,11 +358,11 @@ function icon(name, size, cls) {
 /* ---------------------------------------------------------------------- */
 const state = {
   user: null,
-  account: DEFAULT_ACCOUNT,
   userLoading: true,
   tab: "dashboard",
   tenants: [],
   listings: [],
+  users: [],
   loading: true,
   saveError: "",
   editingTenant: null,
@@ -374,6 +374,9 @@ const state = {
   tenantPropertyFilter: "All",
   formError: "",
   loginError: "",
+  showNewUser: false,
+  deletingUserId: null,
+  userFormError: "",
 };
 
 /* ---------------------------------------------------------------------- */
@@ -457,12 +460,14 @@ async function init() {
 async function loadData() {
   state.loading = true;
   try {
-    const [tenantsRes, listingsRes] = await Promise.all([
+    const [tenantsRes, listingsRes, usersRes] = await Promise.all([
       sb.from("plud_tenants").select("*"),
       sb.from("plud_listings").select("*"),
+      sb.from("plud_users").select("id, username, name, role, created_at").order("created_at"),
     ]);
     if (tenantsRes.error) throw tenantsRes.error;
     if (listingsRes.error) throw listingsRes.error;
+    if (usersRes.error) throw usersRes.error;
 
     if (tenantsRes.data.length === 0 && listingsRes.data.length === 0) {
       // First run against an empty database: seed it once.
@@ -474,32 +479,40 @@ async function loadData() {
       state.tenants = tenantsRes.data.map(tenantRowToState);
       state.listings = listingsRes.data.map(listingRowToState);
     }
+    state.users = usersRes.data;
     state.saveError = "";
   } catch (e) {
     console.error("Supabase load failed:", e);
     state.tenants = SEED_TENANTS;
     state.listings = SEED_LISTINGS;
+    state.users = [];
     state.saveError = "Couldn't reach the database — showing local sample data, changes won't be saved.";
   }
   state.loading = false;
 }
 
 async function loginWithPassword(name, password) {
-  const acc = state.account;
-  if (!acc || acc.name.toLowerCase() !== name.trim().toLowerCase()) {
-    setLoginError("Incorrect username or password.");
-    return;
+  try {
+    const { data, error } = await sb
+      .from("plud_users")
+      .select("*")
+      .eq("username", name.trim().toLowerCase())
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) { setLoginError("Incorrect username or password."); return; }
+
+    const hash = await hashPassword(password, data.salt);
+    if (hash !== data.password_hash) { setLoginError("Incorrect username or password."); return; }
+
+    state.user = { id: data.id, name: data.username, role: data.role || "" };
+    try { await sessionStore.set(USER_STORAGE_KEY, JSON.stringify(state.user)); } catch (e) {}
+    state.loginError = "";
+    await loadData();
+    render();
+  } catch (e) {
+    console.error("Supabase login failed:", e);
+    setLoginError("Couldn't reach the sign-in service. Try again.");
   }
-  const hash = await hashPassword(password, acc.salt);
-  if (hash !== acc.passwordHash) {
-    setLoginError("Incorrect username or password.");
-    return;
-  }
-  state.user = { name: acc.name, role: acc.role };
-  try { await sessionStore.set(USER_STORAGE_KEY, JSON.stringify(state.user)); } catch (e) {}
-  state.loginError = "";
-  await loadData();
-  render();
 }
 
 async function logout() {
@@ -626,11 +639,11 @@ function loginScreenHtml() {
       <div class="login-fields">
         <label>
           <span class="field-label">Username</span>
-          <input id="auth-name" class="input" value="${esc(state.account.name)}" readonly onkeydown="onAuthKeydown(event)" />
+          <input id="auth-name" class="input" placeholder="e.g. admin" autofocus autocomplete="username" onkeydown="onAuthKeydown(event)" />
         </label>
         <label>
           <span class="field-label">Password</span>
-          <input type="password" id="auth-password" class="input" placeholder="Enter your password" autofocus autocomplete="current-password" onkeydown="onAuthKeydown(event)" />
+          <input type="password" id="auth-password" class="input" placeholder="Enter your password" autocomplete="current-password" onkeydown="onAuthKeydown(event)" />
         </label>
       </div>
       <button type="button" class="btn btn-primary btn-block" style="margin-top:24px;" onclick="onAuthSubmit(event)">Sign in</button>
@@ -668,6 +681,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
   { id: "tenants", label: "Prospective tenants", icon: "users" },
   { id: "listings", label: "PLUD listings", icon: "building" },
+  { id: "settings", label: "Settings", icon: "settings" },
 ];
 
 function appShellHtml() {
@@ -703,6 +717,8 @@ function appShellHtml() {
   ${(state.showNewTenant || state.editingTenant) ? tenantModalHtml() : ""}
   ${state.editingListing ? listingModalHtml() : ""}
   ${state.deletingTenantId ? confirmDialogHtml() : ""}
+  ${state.showNewUser ? userModalHtml() : ""}
+  ${state.deletingUserId ? confirmDeleteUserDialogHtml() : ""}
   `;
 }
 
@@ -710,6 +726,7 @@ function tabContentHtml() {
   if (state.tab === "dashboard") return dashboardHtml();
   if (state.tab === "tenants") return tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
+  if (state.tab === "settings") return settingsHtml();
   return "";
 }
 
@@ -1208,6 +1225,142 @@ function saveListing() {
     const el = document.getElementById("save-banner");
     if (el) el.outerHTML = bannerHtml();
   });
+}
+
+/* ---------------------------------------------------------------------- */
+/* Settings / users                                                        */
+/* ---------------------------------------------------------------------- */
+function settingsHtml() {
+  return `
+  <div class="stack">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-sub">Manage who can sign in to this tracker.</p>
+      </div>
+      <button class="btn btn-primary" style="flex-shrink:0;" onclick="openNewUser()">${icon("plus", 16)} Add user</button>
+    </div>
+
+    <section class="panel">
+      <h2 class="section-title">Users</h2>
+      ${state.users.length === 0 ? `<p class="empty-note">No users found.</p>` : `
+      <div class="table-wrap"><div class="table-scroll">
+        <table class="data narrow">
+          <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Added</th><th class="right">Actions</th></tr></thead>
+          <tbody>
+            ${state.users.map((u) => `
+              <tr>
+                <td style="font-weight:500;color:var(--stone-900);">${esc(u.username)}</td>
+                <td>${esc(u.name || "—")}</td>
+                <td>${esc(u.role || "—")}</td>
+                <td>${fmtDate(u.created_at ? u.created_at.slice(0, 10) : "")}</td>
+                <td class="right">
+                  <button class="icon-btn danger" onclick="askDeleteUser('${u.id}')" aria-label="Delete" ${state.users.length <= 1 ? 'disabled title="At least one user must remain"' : ""}>${icon("trash", 15)}</button>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div></div>`}
+    </section>
+  </div>`;
+}
+
+function openNewUser() { state.showNewUser = true; state.userFormError = ""; render(); }
+function closeUserModal() { state.showNewUser = false; state.userFormError = ""; render(); }
+
+function userModalHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal narrow">
+      <div class="modal-header">
+        <h2>Add user</h2>
+        <button class="icon-btn" onclick="closeUserModal()" aria-label="Close">${icon("x", 18)}</button>
+      </div>
+      <div class="modal-body">
+        <div id="u-error">${state.userFormError ? `<div class="form-error">${icon("alert", 16)} ${esc(state.userFormError)}</div>` : ""}</div>
+        <label><span class="field-label">Username</span><input id="u-username" class="input" placeholder="e.g. sam" autofocus /></label>
+        <label><span class="field-label">Name (optional)</span><input id="u-name" class="input" placeholder="e.g. Sam Bouteldja" /></label>
+        <label><span class="field-label">Role (optional)</span><input id="u-role" class="input" placeholder="e.g. Leasing Manager" /></label>
+        <div class="grid-2">
+          <label><span class="field-label">Password</span><input type="password" id="u-password" class="input" placeholder="Create a password" autocomplete="new-password" /></label>
+          <label><span class="field-label">Confirm password</span><input type="password" id="u-password2" class="input" placeholder="Re-enter password" autocomplete="new-password" /></label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeUserModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveNewUser()">Add user</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function saveNewUser() {
+  const val = (id) => document.getElementById(id).value;
+  const username = val("u-username").trim().toLowerCase();
+  const name = val("u-name").trim();
+  const role = val("u-role").trim();
+  const password = val("u-password");
+  const password2 = val("u-password2");
+
+  const showErr = (msg) => {
+    state.userFormError = msg;
+    document.getElementById("u-error").innerHTML = `<div class="form-error">${icon("alert", 16)} ${esc(msg)}</div>`;
+  };
+
+  if (!username) { showErr("Enter a username."); return; }
+  if (!password || password.length < 4) { showErr("Password must be at least 4 characters."); return; }
+  if (password !== password2) { showErr("Passwords don't match."); return; }
+  if (state.users.some((u) => u.username.toLowerCase() === username)) { showErr("That username is already taken."); return; }
+
+  const salt = randomSalt();
+  const passwordHash = await hashPassword(password, salt);
+  const row = { id: uid("U"), username, salt, password_hash: passwordHash, name, role };
+
+  try {
+    const { error } = await sb.from("plud_users").insert(row);
+    if (error) throw error;
+    state.users = [...state.users, { id: row.id, username, name, role, created_at: new Date().toISOString() }];
+    state.showNewUser = false;
+    state.userFormError = "";
+    render();
+  } catch (e) {
+    console.error("Supabase add user failed:", e);
+    showErr("Couldn't save this user — try again.");
+  }
+}
+
+function askDeleteUser(id) {
+  if (state.users.length <= 1) return;
+  state.deletingUserId = id;
+  render();
+}
+function cancelDeleteUser() { state.deletingUserId = null; render(); }
+async function confirmDeleteUser() {
+  const id = state.deletingUserId;
+  const wasSelf = state.user && state.user.id === id;
+  state.users = state.users.filter((u) => u.id !== id);
+  state.deletingUserId = null;
+  render();
+  try {
+    const { error } = await sb.from("plud_users").delete().eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    console.error("Supabase delete user failed:", e);
+  }
+  if (wasSelf) await logout();
+}
+function confirmDeleteUserDialogHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal confirm">
+      <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Remove this user?</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">They won't be able to sign in anymore. This can't be undone.</p>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn btn-outline" onclick="cancelDeleteUser()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteUser()">Remove</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ---------------------------------------------------------------------- */

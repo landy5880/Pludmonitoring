@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LayoutDashboard, Users, Building2, Plus, Pencil, Trash2, X,
   Search, ChevronDown, Phone, Mail, Calendar, MapPin, Check,
-  AlertCircle, Loader2, LogOut,
+  AlertCircle, Loader2, LogOut, Settings,
 } from "lucide-react";
 
 const PROPERTIES = [
@@ -81,7 +81,6 @@ const SEED_TENANTS = [
 
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
-const ACCOUNT_KEY = "plud-leasing-tracker-account";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY2lheWh4dmtxaG1nY2RmdmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMjU4NTIsImV4cCI6MjEwNDYwMTg1Mn0.nzt3RSE65MrR_Y3lqPiGFwYgdoBnsYDC8ket3GifYuk";
 
@@ -173,9 +172,6 @@ const sessionStore = {
   },
 };
 
-// Fixed sign-in credential: username "admin", password "admin".
-// The password is never stored in plain text — only a salted SHA-256 hash is compared.
-const DEFAULT_ACCOUNT = { name: "admin", role: "", salt: "plud-fixed-salt-v1", passwordHash: "227f70cfcfdc019515121a9a5c2558bdb0583b15eb55945dd5b7db9acd0e576b" };
 const uid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 const keyOf = (property, unit) => (property && unit ? `${property}|${unit}` : "");
 const fmtDate = (d) => {
@@ -420,8 +416,73 @@ function ListingModal({ listing, onClose, onSave }) {
   );
 }
 
-function ConfirmDialog({ title, body, onCancel, onConfirm }) {
+function UserModal({ onClose, onSave }) {
+  const [username, setUsername] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSave = async () => {
+    setSubmitting(true);
+    const result = await onSave({ username, name, role, password, password2 });
+    setSubmitting(false);
+    if (result && result.error) setError(result.error);
+  };
+
   return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+          <h2 className="font-serif text-base font-semibold text-stone-900">Add user</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="space-y-4 px-6 py-5">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+          <Field label="Username">
+            <input autoFocus className={inputCls} placeholder="e.g. sam" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }} />
+          </Field>
+          <Field label="Name (optional)">
+            <input className={inputCls} placeholder="e.g. Sam Bouteldja" value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Role (optional)">
+            <input className={inputCls} placeholder="e.g. Leasing Manager" value={role} onChange={(e) => setRole(e.target.value)} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Password">
+              <input type="password" autoComplete="new-password" className={inputCls} placeholder="Create a password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} />
+            </Field>
+            <Field label="Confirm password">
+              <input type="password" autoComplete="new-password" className={inputCls} placeholder="Re-enter password" value={password2} onChange={(e) => { setPassword2(e.target.value); setError(""); }} />
+            </Field>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-stone-200 px-6 py-4">
+          <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={submitting}
+            className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+          >
+            Add user
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ title, body, onCancel, onConfirm, confirmLabel = "Delete" }) {  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
       <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
         <h2 className="font-serif text-base font-semibold text-stone-900">{title}</h2>
@@ -431,7 +492,7 @@ function ConfirmDialog({ title, body, onCancel, onConfirm }) {
             Cancel
           </button>
           <button onClick={onConfirm} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">
-            Delete
+            {confirmLabel}
           </button>
         </div>
       </div>
@@ -439,8 +500,8 @@ function ConfirmDialog({ title, body, onCancel, onConfirm }) {
   );
 }
 
-function LoginScreen({ account, onLoginWithPassword }) {
-  const [name] = useState(account.name);
+function LoginScreen({ onLoginWithPassword }) {
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -482,11 +543,17 @@ function LoginScreen({ account, onLoginWithPassword }) {
 
         <div className="space-y-4">
           <Field label="Username">
-            <input readOnly className={inputCls} value={name} />
+            <input
+              autoFocus
+              className={inputCls}
+              placeholder="e.g. admin"
+              autoComplete="username"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(""); }}
+            />
           </Field>
           <Field label="Password">
             <input
-              autoFocus
               type="password"
               autoComplete="current-password"
               className={inputCls}
@@ -512,7 +579,7 @@ function LoginScreen({ account, onLoginWithPassword }) {
 export default function PLUDLeasingTracker() {
   const [tab, setTab] = useState("dashboard");
   const [user, setUser] = useState(null);
-  const [account] = useState(DEFAULT_ACCOUNT);
+  const [users, setUsers] = useState([]);
   const [userLoading, setUserLoading] = useState(true);
   const [tenants, setTenants] = useState([]);
   const [listings, setListings] = useState([]);
@@ -527,6 +594,9 @@ export default function PLUDLeasingTracker() {
   const [tenantSearch, setTenantSearch] = useState("");
   const [tenantStatusFilter, setTenantStatusFilter] = useState("All");
   const [tenantPropertyFilter, setTenantPropertyFilter] = useState("All");
+
+  const [showNewUser, setShowNewUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -547,14 +617,21 @@ export default function PLUDLeasingTracker() {
   }, []);
 
   const handleLoginWithPassword = useCallback(async (name, password) => {
-    if (!account || account.name.toLowerCase() !== name.trim().toLowerCase()) return false;
-    const hash = await hashPassword(password, account.salt);
-    if (hash !== account.passwordHash) return false;
-    const u = { name: account.name, role: account.role };
-    setUser(u);
-    try { await sessionStore.set(USER_STORAGE_KEY, JSON.stringify(u)); } catch { /* ignore */ }
-    return true;
-  }, [account]);
+    try {
+      const rows = await sbRequest(`plud_users?username=eq.${encodeURIComponent(name.trim().toLowerCase())}&select=*`);
+      const row = rows[0];
+      if (!row) return false;
+      const hash = await hashPassword(password, row.salt);
+      if (hash !== row.password_hash) return false;
+      const u = { id: row.id, name: row.username, role: row.role || "" };
+      setUser(u);
+      try { await sessionStore.set(USER_STORAGE_KEY, JSON.stringify(u)); } catch { /* ignore */ }
+      return true;
+    } catch (e) {
+      console.error("Supabase login failed:", e);
+      return false;
+    }
+  }, []);
 
   const handleLogout = useCallback(async () => {
     setUser(null);
@@ -565,14 +642,18 @@ export default function PLUDLeasingTracker() {
     }
   }, []);
 
-  // Tenants and listings live in Supabase so they persist across browsers
-  // and devices, and work on the published static site too.
+  // Tenants, listings and users live in Supabase so they persist across
+  // browsers and devices, and work on the published static site too.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       try {
-        const [tenantRows, listingRows] = await Promise.all([sbSelect("plud_tenants"), sbSelect("plud_listings")]);
+        const [tenantRows, listingRows, userRows] = await Promise.all([
+          sbSelect("plud_tenants"),
+          sbSelect("plud_listings"),
+          sbRequest("plud_users?select=id,username,name,role,created_at&order=created_at"),
+        ]);
         if (cancelled) return;
         if (tenantRows.length === 0 && listingRows.length === 0) {
           await Promise.all([
@@ -585,11 +666,13 @@ export default function PLUDLeasingTracker() {
           setTenants(tenantRows.map(tenantRowToState));
           setListings(listingRows.map(listingRowToState));
         }
+        setUsers(userRows);
         setSaveError("");
       } catch (e) {
         console.error("Supabase load failed:", e);
         setTenants(SEED_TENANTS);
         setListings(SEED_LISTINGS);
+        setUsers([]);
         setSaveError("Couldn't reach the database — showing local sample data, changes won't be saved.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -597,6 +680,39 @@ export default function PLUDLeasingTracker() {
     })();
     return () => { cancelled = true; };
   }, [user]);
+
+  const addUser = useCallback(async (form) => {
+    const username = form.username.trim().toLowerCase();
+    if (!username) return { error: "Enter a username." };
+    if (!form.password || form.password.length < 4) return { error: "Password must be at least 4 characters." };
+    if (form.password !== form.password2) return { error: "Passwords don't match." };
+    if (users.some((u) => u.username.toLowerCase() === username)) return { error: "That username is already taken." };
+
+    const salt = randomSalt();
+    const passwordHash = await hashPassword(form.password, salt);
+    const row = { id: uid("U"), username, salt, password_hash: passwordHash, name: form.name.trim(), role: form.role.trim() };
+    try {
+      await sbRequest("plud_users", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+      setUsers((prev) => [...prev, { id: row.id, username, name: row.name, role: row.role, created_at: new Date().toISOString() }]);
+      setShowNewUser(false);
+      return { error: null };
+    } catch (e) {
+      console.error("Supabase add user failed:", e);
+      return { error: "Couldn't save this user — try again." };
+    }
+  }, [users]);
+
+  const deleteUser = useCallback(async (id) => {
+    const wasSelf = user && user.id === id;
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    setDeletingUserId(null);
+    try {
+      await sbDelete("plud_users", id);
+    } catch (e) {
+      console.error("Supabase delete user failed:", e);
+    }
+    if (wasSelf) await handleLogout();
+  }, [user, handleLogout]);
 
   const unitsByProperty = useMemo(() => {
     const map = {};
@@ -725,7 +841,6 @@ export default function PLUDLeasingTracker() {
   if (!user) {
     return (
       <LoginScreen
-        account={account}
         onLoginWithPassword={handleLoginWithPassword}
       />
     );
@@ -743,6 +858,7 @@ export default function PLUDLeasingTracker() {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "tenants", label: "Prospective tenants", icon: Users },
     { id: "listings", label: "PLUD listings", icon: Building2 },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -1086,6 +1202,66 @@ export default function PLUDLeasingTracker() {
             ))}
           </div>
         )}
+        {tab === "settings" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h1 className="font-serif text-lg font-semibold text-stone-900">Settings</h1>
+                <p className="text-sm text-stone-500">Manage who can sign in to this tracker.</p>
+              </div>
+              <button
+                onClick={() => setShowNewUser(true)}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800"
+              >
+                <Plus size={16} /> Add user
+              </button>
+            </div>
+
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Users</h2>
+              {users.length === 0 ? (
+                <p className="py-6 text-center text-sm text-stone-500">No users found.</p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-stone-200">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Username</th>
+                          <th className="px-4 py-3 font-medium">Name</th>
+                          <th className="px-4 py-3 font-medium">Role</th>
+                          <th className="px-4 py-3 font-medium">Added</th>
+                          <th className="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {users.map((u) => (
+                          <tr key={u.id} className="hover:bg-stone-50">
+                            <td className="px-4 py-3 font-medium text-stone-900">{u.username}</td>
+                            <td className="px-4 py-3 text-stone-600">{u.name || "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{u.role || "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{fmtDate(u.created_at ? u.created_at.slice(0, 10) : "")}</td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => setDeletingUserId(u.id)}
+                                disabled={users.length <= 1}
+                                title={users.length <= 1 ? "At least one user must remain" : undefined}
+                                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
+                                aria-label="Delete"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
         </main>
       </div>
 
@@ -1108,6 +1284,20 @@ export default function PLUDLeasingTracker() {
           body="This removes the tenant inquiry permanently. This can't be undone."
           onCancel={() => setDeletingTenantId(null)}
           onConfirm={() => deleteTenant(deletingTenantId)}
+        />
+      )}
+
+      {showNewUser && (
+        <UserModal onClose={() => setShowNewUser(false)} onSave={addUser} />
+      )}
+
+      {deletingUserId && (
+        <ConfirmDialog
+          title="Remove this user?"
+          body="They won't be able to sign in anymore. This can't be undone."
+          confirmLabel="Remove"
+          onCancel={() => setDeletingUserId(null)}
+          onConfirm={() => deleteUser(deletingUserId)}
         />
       )}
     </div>
