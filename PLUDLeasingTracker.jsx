@@ -932,6 +932,8 @@ export default function PLUDLeasingTracker() {
   const [tenantSearch, setTenantSearch] = useState("");
   const [tenantStatusFilter, setTenantStatusFilter] = useState("All");
   const [tenantPropertyFilter, setTenantPropertyFilter] = useState("All");
+  const [tenantView, setTenantView] = useState("table");
+  const [draggingTenantId, setDraggingTenantId] = useState(null);
 
   const [showNewUser, setShowNewUser] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState(null);
@@ -1237,6 +1239,18 @@ export default function PLUDLeasingTracker() {
       .catch((e) => { console.error("Supabase save (tenant) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
+  const updateTenantStatus = useCallback((id, newStatus) => {
+    setTenants((prev) => {
+      const t = prev.find((x) => x.id === id);
+      if (!t || t.status === newStatus) return prev;
+      const updated = { ...t, status: newStatus };
+      sbUpsert("plud_tenants", [tenantStateToRow(updated)])
+        .then(() => setSaveError(""))
+        .catch((e) => { console.error("Supabase status update failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+      return prev.map((x) => (x.id === id ? updated : x));
+    });
+  }, []);
+
   const deleteTenant = useCallback((id) => {
     setTenants((prev) => prev.filter((t) => t.id !== id));
     setDeletingTenantId(null);
@@ -1480,13 +1494,21 @@ export default function PLUDLeasingTracker() {
     );
   }
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "tenants", label: "Prospective tenants", icon: Users },
-    { id: "listings", label: "PLUD listings", icon: Building2 },
-    { id: "maintenance", label: "Maintenance", icon: Wrench },
-    { id: "reports", label: "Reports", icon: FileText },
-    { id: "settings", label: "Settings", icon: Settings },
+  const navGroups = [
+    { label: null, items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }] },
+    { label: "Leasing", items: [
+      { id: "tenants", label: "Prospective tenants", icon: Users },
+      { id: "listings", label: "PLUD listings", icon: Building2 },
+    ] },
+    { label: "Operations", items: [
+      { id: "maintenance", label: "Maintenance", icon: Wrench },
+    ] },
+    { label: "Reports", items: [
+      { id: "reports", label: "Reports", icon: FileText },
+    ] },
+    { label: "Administration", items: [
+      { id: "settings", label: "Settings", icon: Settings },
+    ] },
   ];
 
   return (
@@ -1504,18 +1526,23 @@ export default function PLUDLeasingTracker() {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`flex w-full items-center gap-2.5 rounded-md border-l-4 px-3 py-2.5 text-left text-sm font-medium transition ${
-                tab === id
-                  ? "border-violet-400 bg-zinc-800 text-stone-100"
-                  : "border-transparent text-zinc-400 hover:bg-zinc-800 hover:text-stone-100"
-              }`}
-            >
-              <Icon size={16} /> {label}
-            </button>
+          {navGroups.map((g, gi) => (
+            <div key={gi} className={gi > 0 ? "mt-3" : ""}>
+              {g.label && <p className="mb-1 mt-2 px-3 text-xs font-semibold text-zinc-500">{g.label}</p>}
+              {g.items.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setTab(id)}
+                  className={`flex w-full items-center gap-2.5 rounded-md border-l-4 px-3 py-2.5 text-left text-sm font-medium transition ${
+                    tab === id
+                      ? "border-violet-400 bg-zinc-800 text-stone-100"
+                      : "border-transparent text-zinc-400 hover:bg-zinc-800 hover:text-stone-100"
+                  }`}
+                >
+                  <Icon size={16} /> {label}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -1777,6 +1804,20 @@ export default function PLUDLeasingTracker() {
                 <option value="All">All properties</option>
                 {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
+              <div className="flex shrink-0 overflow-hidden rounded-lg border border-stone-300">
+                <button
+                  onClick={() => setTenantView("table")}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${tenantView === "table" ? "bg-violet-700 text-white" : "bg-white text-stone-600"}`}
+                >
+                  <LayoutDashboard size={14} /> Table
+                </button>
+                <button
+                  onClick={() => setTenantView("kanban")}
+                  className={`flex items-center gap-1.5 border-l border-stone-300 px-3 py-2 text-sm font-medium ${tenantView === "kanban" ? "bg-violet-700 text-white" : "bg-white text-stone-600"}`}
+                >
+                  <Building2 size={14} /> Kanban
+                </button>
+              </div>
               <button
                 onClick={() => setShowNewTenant(true)}
                 className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3.5 py-2 text-sm font-medium text-white hover:bg-violet-800"
@@ -1785,7 +1826,52 @@ export default function PLUDLeasingTracker() {
               </button>
             </div>
 
-            {filteredTenants.length === 0 ? (
+            {tenantView === "kanban" ? (
+              <div className="flex items-start gap-3 overflow-x-auto pb-2">
+                {allStatusOptions.map((status) => {
+                  const cards = filteredTenants.filter((t) => t.status === status);
+                  const s = STATUS_STYLE[status] || STATUS_STYLE["Inquired"];
+                  return (
+                    <div
+                      key={status}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = draggingTenantId || e.dataTransfer.getData("text/plain");
+                        if (id) updateTenantStatus(id, status);
+                        setDraggingTenantId(null);
+                      }}
+                      className="flex max-h-96 w-64 shrink-0 flex-col rounded-lg bg-stone-100"
+                    >
+                      <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
+                        <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                        <span className="flex-1 text-xs font-semibold text-stone-700">{status}</span>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-stone-500">{cards.length}</span>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
+                        {cards.length === 0 ? (
+                          <p className="py-5 text-center text-xs text-stone-400">No inquiries</p>
+                        ) : cards.map((t) => (
+                          <div
+                            key={t.id}
+                            draggable
+                            onDragStart={(e) => { setDraggingTenantId(t.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", t.id); }}
+                            onDragEnd={() => setDraggingTenantId(null)}
+                            onClick={() => setEditingTenant(t)}
+                            className="cursor-grab rounded-lg border border-stone-200 bg-white p-2.5 shadow-sm hover:border-stone-300 hover:shadow"
+                          >
+                            <p className="text-sm font-semibold text-stone-900">{t.brand || t.concept || "(no brand/concept yet)"}</p>
+                            <p className="mt-0.5 text-xs text-stone-500">{t.contact}</p>
+                            <p className="text-xs text-stone-500">{t.property}{t.unit ? ` · ${t.unit}` : ""}</p>
+                            {t.category && <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-violet-700">{t.category}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : filteredTenants.length === 0 ? (
               <div className="rounded-lg border border-dashed border-stone-300 bg-white py-14 text-center">
                 <p className="text-sm font-medium text-stone-700">No inquiries match these filters.</p>
                 <p className="mt-1 text-xs text-stone-500">Try clearing search or filters, or add a new inquiry.</p>
