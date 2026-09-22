@@ -205,6 +205,7 @@
 <body>
 <div id="root"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ---------------------------------------------------------------------- */
 /* Data                                                                    */
@@ -283,8 +284,10 @@ const SEED_TENANTS = [
   },
 ];
 
-const STORAGE_KEY = "plud-leasing-tracker-data";
+const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
+const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY2lheWh4dmtxaG1nY2RmdmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMjU4NTIsImV4cCI6MjEwNDYwMTg1Mn0.nzt3RSE65MrR_Y3lqPiGFwYgdoBnsYDC8ket3GifYuk";
 // Fixed sign-in credential: username "admin", password "admin".
 // The password is never stored in plain text — only a salted SHA-256 hash is compared.
 const DEFAULT_ACCOUNT = { name: "admin", role: "", salt: "plud-fixed-salt-v1", passwordHash: "227f70cfcfdc019515121a9a5c2558bdb0583b15eb55945dd5b7db9acd0e576b" };
@@ -373,14 +376,77 @@ const state = {
   loginError: "",
 };
 
-let saveTimer = null;
-
 /* ---------------------------------------------------------------------- */
 /* Persistence                                                             */
 /* ---------------------------------------------------------------------- */
+// Session storage: uses window.storage when available (Claude artifact
+// preview), falls back to plain localStorage everywhere else (e.g. the
+// published GitHub Pages site) so sign-in survives a reload either way.
+const sessionStore = {
+  async get(key) {
+    if (typeof window.storage !== "undefined") {
+      try { return await window.storage.get(key, false); } catch (e) { /* fall through */ }
+    }
+    try {
+      const v = localStorage.getItem(key);
+      return v != null ? { key, value: v } : null;
+    } catch (e) { return null; }
+  },
+  async set(key, value) {
+    if (typeof window.storage !== "undefined") {
+      try { return await window.storage.set(key, value, false); } catch (e) { /* fall through */ }
+    }
+    try { localStorage.setItem(key, value); return { key, value }; } catch (e) { return null; }
+  },
+  async delete(key) {
+    if (typeof window.storage !== "undefined") {
+      try { return await window.storage.delete(key, false); } catch (e) { /* fall through */ }
+    }
+    try { localStorage.removeItem(key); return { key, deleted: true }; } catch (e) { return null; }
+  },
+};
+
+// Data storage: tenants and listings live in Supabase so they persist
+// across browsers/devices and work on the published static site, not just
+// inside a Claude artifact.
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function tenantRowToState(r) {
+  return {
+    id: r.id, dateInquired: r.date_inquired || "", brand: r.brand || "", category: r.category || "",
+    concept: r.concept || "", contact: r.contact || "", mobile: r.mobile || "", email: r.email || "",
+    sqm: r.sqm || "", property: r.property || "", unit: r.unit || "", remarks: r.remarks || "",
+    unitViewing: r.unit_viewing || "", foodTasting: r.food_tasting || "", status: r.status || "Inquired",
+  };
+}
+function tenantStateToRow(t) {
+  return {
+    id: t.id, date_inquired: t.dateInquired || null, brand: t.brand || "", category: t.category || "",
+    concept: t.concept || "", contact: t.contact || "", mobile: t.mobile || "", email: t.email || "",
+    sqm: t.sqm || "", property: t.property || "", unit: t.unit || "", remarks: t.remarks || "",
+    unit_viewing: t.unitViewing || null, food_tasting: t.foodTasting || null, status: t.status || "Inquired",
+  };
+}
+function listingRowToState(r) {
+  return {
+    id: r.id, property: r.property, unit: r.unit,
+    floorArea: r.floor_area === null ? "" : r.floor_area,
+    askingRate: r.asking_rate === null ? "" : r.asking_rate,
+    notes: r.notes || "",
+  };
+}
+function listingStateToRow(l) {
+  return {
+    id: l.id, property: l.property, unit: l.unit,
+    floor_area: l.floorArea === "" || l.floorArea === undefined ? null : Number(l.floorArea),
+    asking_rate: l.askingRate === "" || l.askingRate === undefined ? null : Number(l.askingRate),
+    notes: l.notes || "",
+  };
+}
+
 async function init() {
   try {
-    const res = await window.storage.get(USER_STORAGE_KEY, false);
+    const res = await sessionStore.get(USER_STORAGE_KEY);
     if (res && res.value) state.user = JSON.parse(res.value);
   } catch (e) { /* no active session */ }
   state.userLoading = false;
@@ -391,34 +457,31 @@ async function init() {
 async function loadData() {
   state.loading = true;
   try {
-    const res = await window.storage.get(STORAGE_KEY, false);
-    if (res && res.value) {
-      const parsed = JSON.parse(res.value);
-      state.tenants = parsed.tenants || SEED_TENANTS;
-      state.listings = parsed.listings || SEED_LISTINGS;
-    } else {
+    const [tenantsRes, listingsRes] = await Promise.all([
+      sb.from("plud_tenants").select("*"),
+      sb.from("plud_listings").select("*"),
+    ]);
+    if (tenantsRes.error) throw tenantsRes.error;
+    if (listingsRes.error) throw listingsRes.error;
+
+    if (tenantsRes.data.length === 0 && listingsRes.data.length === 0) {
+      // First run against an empty database: seed it once.
+      await sb.from("plud_tenants").upsert(SEED_TENANTS.map(tenantStateToRow));
+      await sb.from("plud_listings").upsert(SEED_LISTINGS.map(listingStateToRow));
       state.tenants = SEED_TENANTS;
       state.listings = SEED_LISTINGS;
+    } else {
+      state.tenants = tenantsRes.data.map(tenantRowToState);
+      state.listings = listingsRes.data.map(listingRowToState);
     }
+    state.saveError = "";
   } catch (e) {
+    console.error("Supabase load failed:", e);
     state.tenants = SEED_TENANTS;
     state.listings = SEED_LISTINGS;
+    state.saveError = "Couldn't reach the database — showing local sample data, changes won't be saved.";
   }
   state.loading = false;
-}
-
-function scheduleSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try {
-      const res = await window.storage.set(STORAGE_KEY, JSON.stringify({ tenants: state.tenants, listings: state.listings }), false);
-      state.saveError = res ? "" : "Changes aren't saving right now — they'll stay for this session.";
-    } catch (e) {
-      state.saveError = "Changes aren't saving right now — they'll stay for this session.";
-    }
-    const el = document.getElementById("save-banner");
-    if (el) el.outerHTML = bannerHtml();
-  }, 400);
 }
 
 async function loginWithPassword(name, password) {
@@ -433,7 +496,7 @@ async function loginWithPassword(name, password) {
     return;
   }
   state.user = { name: acc.name, role: acc.role };
-  try { await window.storage.set(USER_STORAGE_KEY, JSON.stringify(state.user), false); } catch (e) {}
+  try { await sessionStore.set(USER_STORAGE_KEY, JSON.stringify(state.user)); } catch (e) {}
   state.loginError = "";
   await loadData();
   render();
@@ -441,7 +504,7 @@ async function loginWithPassword(name, password) {
 
 async function logout() {
   state.user = null;
-  try { await window.storage.delete(USER_STORAGE_KEY, false); } catch (e) {}
+  try { await sessionStore.delete(USER_STORAGE_KEY); } catch (e) {}
   render();
 }
 
@@ -1020,17 +1083,29 @@ function saveTenant() {
     return;
   }
 
+  const id = state.editingTenant ? state.editingTenant.id : uid("T");
+  const record = { ...form, id };
+
   if (state.editingTenant) {
-    const id = state.editingTenant.id;
-    state.tenants = state.tenants.map((t) => (t.id === id ? { ...form, id } : t));
+    state.tenants = state.tenants.map((t) => (t.id === id ? record : t));
   } else {
-    state.tenants = [{ ...form, id: uid("T") }, ...state.tenants];
+    state.tenants = [record, ...state.tenants];
   }
   state.showNewTenant = false;
   state.editingTenant = null;
   state.formError = "";
   render();
-  scheduleSave();
+
+  sb.from("plud_tenants").upsert(tenantStateToRow(record)).then(({ error }) => {
+    if (error) {
+      console.error("Supabase save (tenant) failed:", error);
+      state.saveError = "Changes aren't saving to the database right now.";
+    } else {
+      state.saveError = "";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  });
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1039,10 +1114,21 @@ function saveTenant() {
 function askDeleteTenant(id) { state.deletingTenantId = id; render(); }
 function cancelDeleteTenant() { state.deletingTenantId = null; render(); }
 function confirmDeleteTenant() {
-  state.tenants = state.tenants.filter((t) => t.id !== state.deletingTenantId);
+  const id = state.deletingTenantId;
+  state.tenants = state.tenants.filter((t) => t.id !== id);
   state.deletingTenantId = null;
   render();
-  scheduleSave();
+
+  sb.from("plud_tenants").delete().eq("id", id).then(({ error }) => {
+    if (error) {
+      console.error("Supabase delete (tenant) failed:", error);
+      state.saveError = "Changes aren't saving to the database right now.";
+    } else {
+      state.saveError = "";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  });
 }
 function confirmDialogHtml() {
   return `
@@ -1103,15 +1189,25 @@ function saveListing() {
   const ar = document.getElementById("l-askingRate").value;
   const notes = document.getElementById("l-notes").value;
   const id = state.editingListing.id;
-  state.listings = state.listings.map((p) => (p.id === id ? {
-    ...p,
-    floorArea: fa === "" ? "" : Number(fa),
-    askingRate: ar === "" ? "" : Number(ar),
-    notes,
-  } : p));
+  let updated = null;
+  state.listings = state.listings.map((p) => {
+    if (p.id !== id) return p;
+    updated = { ...p, floorArea: fa === "" ? "" : Number(fa), askingRate: ar === "" ? "" : Number(ar), notes };
+    return updated;
+  });
   state.editingListing = null;
   render();
-  scheduleSave();
+
+  sb.from("plud_listings").upsert(listingStateToRow(updated)).then(({ error }) => {
+    if (error) {
+      console.error("Supabase save (listing) failed:", error);
+      state.saveError = "Changes aren't saving to the database right now.";
+    } else {
+      state.saveError = "";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  });
 }
 
 /* ---------------------------------------------------------------------- */

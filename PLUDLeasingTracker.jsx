@@ -79,9 +79,100 @@ const SEED_TENANTS = [
   },
 ];
 
-const STORAGE_KEY = "plud-leasing-tracker-data";
+const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const ACCOUNT_KEY = "plud-leasing-tracker-account";
+const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY2lheWh4dmtxaG1nY2RmdmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMjU4NTIsImV4cCI6MjEwNDYwMTg1Mn0.nzt3RSE65MrR_Y3lqPiGFwYgdoBnsYDC8ket3GifYuk";
+
+// Talks to Supabase's REST API directly with fetch, rather than importing
+// the @supabase/supabase-js SDK, since the artifact sandbox only allows a
+// fixed set of importable packages and that SDK isn't one of them.
+async function sbRequest(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Supabase ${options.method || "GET"} ${path} failed: ${res.status} ${text}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+const sbSelect = (table) => sbRequest(`${table}?select=*`);
+const sbUpsert = (table, rows) => sbRequest(table, {
+  method: "POST",
+  headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+  body: JSON.stringify(rows),
+});
+const sbDelete = (table, id) => sbRequest(`${table}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE" });
+
+function tenantRowToState(r) {
+  return {
+    id: r.id, dateInquired: r.date_inquired || "", brand: r.brand || "", category: r.category || "",
+    concept: r.concept || "", contact: r.contact || "", mobile: r.mobile || "", email: r.email || "",
+    sqm: r.sqm || "", property: r.property || "", unit: r.unit || "", remarks: r.remarks || "",
+    unitViewing: r.unit_viewing || "", foodTasting: r.food_tasting || "", status: r.status || "Inquired",
+  };
+}
+function tenantStateToRow(t) {
+  return {
+    id: t.id, date_inquired: t.dateInquired || null, brand: t.brand || "", category: t.category || "",
+    concept: t.concept || "", contact: t.contact || "", mobile: t.mobile || "", email: t.email || "",
+    sqm: t.sqm || "", property: t.property || "", unit: t.unit || "", remarks: t.remarks || "",
+    unit_viewing: t.unitViewing || null, food_tasting: t.foodTasting || null, status: t.status || "Inquired",
+  };
+}
+function listingRowToState(r) {
+  return {
+    id: r.id, property: r.property, unit: r.unit,
+    floorArea: r.floor_area === null ? "" : r.floor_area,
+    askingRate: r.asking_rate === null ? "" : r.asking_rate,
+    notes: r.notes || "",
+  };
+}
+function listingStateToRow(l) {
+  return {
+    id: l.id, property: l.property, unit: l.unit,
+    floor_area: l.floorArea === "" || l.floorArea === undefined ? null : Number(l.floorArea),
+    asking_rate: l.askingRate === "" || l.askingRate === undefined ? null : Number(l.askingRate),
+    notes: l.notes || "",
+  };
+}
+
+// Session storage: uses window.storage when available (Claude artifact
+// preview), falls back to plain localStorage otherwise, so sign-in
+// survives a reload in both environments.
+const sessionStore = {
+  async get(key) {
+    if (typeof window !== "undefined" && window.storage) {
+      try { return await window.storage.get(key, false); } catch (e) { /* fall through */ }
+    }
+    try {
+      const v = localStorage.getItem(key);
+      return v != null ? { key, value: v } : null;
+    } catch (e) { return null; }
+  },
+  async set(key, value) {
+    if (typeof window !== "undefined" && window.storage) {
+      try { return await window.storage.set(key, value, false); } catch (e) { /* fall through */ }
+    }
+    try { localStorage.setItem(key, value); return { key, value }; } catch (e) { return null; }
+  },
+  async delete(key) {
+    if (typeof window !== "undefined" && window.storage) {
+      try { return await window.storage.delete(key, false); } catch (e) { /* fall through */ }
+    }
+    try { localStorage.removeItem(key); return { key, deleted: true }; } catch (e) { return null; }
+  },
+};
+
 // Fixed sign-in credential: username "admin", password "admin".
 // The password is never stored in plain text — only a salted SHA-256 hash is compared.
 const DEFAULT_ACCOUNT = { name: "admin", role: "", salt: "plud-fixed-salt-v1", passwordHash: "227f70cfcfdc019515121a9a5c2558bdb0583b15eb55945dd5b7db9acd0e576b" };
@@ -441,7 +532,7 @@ export default function PLUDLeasingTracker() {
     let cancelled = false;
     (async () => {
       try {
-        const result = await window.storage.get(USER_STORAGE_KEY, false);
+        const result = await sessionStore.get(USER_STORAGE_KEY);
         if (cancelled) return;
         if (result && result.value) {
           setUser(JSON.parse(result.value));
@@ -461,57 +552,51 @@ export default function PLUDLeasingTracker() {
     if (hash !== account.passwordHash) return false;
     const u = { name: account.name, role: account.role };
     setUser(u);
-    try { await window.storage.set(USER_STORAGE_KEY, JSON.stringify(u), false); } catch { /* ignore */ }
+    try { await sessionStore.set(USER_STORAGE_KEY, JSON.stringify(u)); } catch { /* ignore */ }
     return true;
   }, [account]);
 
   const handleLogout = useCallback(async () => {
     setUser(null);
     try {
-      await window.storage.delete(USER_STORAGE_KEY, false);
+      await sessionStore.delete(USER_STORAGE_KEY);
     } catch {
       // ignore
     }
   }, []);
 
+  // Tenants and listings live in Supabase so they persist across browsers
+  // and devices, and work on the published static site too.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       try {
-        const result = await window.storage.get(STORAGE_KEY, false);
+        const [tenantRows, listingRows] = await Promise.all([sbSelect("plud_tenants"), sbSelect("plud_listings")]);
         if (cancelled) return;
-        if (result && result.value) {
-          const parsed = JSON.parse(result.value);
-          setTenants(parsed.tenants || SEED_TENANTS);
-          setListings(parsed.listings || SEED_LISTINGS);
-        } else {
+        if (tenantRows.length === 0 && listingRows.length === 0) {
+          await Promise.all([
+            sbUpsert("plud_tenants", SEED_TENANTS.map(tenantStateToRow)),
+            sbUpsert("plud_listings", SEED_LISTINGS.map(listingStateToRow)),
+          ]);
           setTenants(SEED_TENANTS);
           setListings(SEED_LISTINGS);
+        } else {
+          setTenants(tenantRows.map(tenantRowToState));
+          setListings(listingRows.map(listingRowToState));
         }
-      } catch {
+        setSaveError("");
+      } catch (e) {
+        console.error("Supabase load failed:", e);
         setTenants(SEED_TENANTS);
         setListings(SEED_LISTINGS);
+        setSaveError("Couldn't reach the database — showing local sample data, changes won't be saved.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [user]);
-
-  useEffect(() => {
-    if (loading) return;
-    const t = setTimeout(async () => {
-      try {
-        const res = await window.storage.set(STORAGE_KEY, JSON.stringify({ tenants, listings }), false);
-        if (!res) setSaveError("Changes aren't saving right now — they'll stay for this session.");
-        else setSaveError("");
-      } catch {
-        setSaveError("Changes aren't saving right now — they'll stay for this session.");
-      }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [tenants, listings, loading]);
 
   const unitsByProperty = useMemo(() => {
     const map = {};
@@ -534,16 +619,25 @@ export default function PLUDLeasingTracker() {
     });
     setEditingTenant(null);
     setShowNewTenant(false);
+    sbUpsert("plud_tenants", [tenantStateToRow(t)])
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase save (tenant) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
   const deleteTenant = useCallback((id) => {
     setTenants((prev) => prev.filter((t) => t.id !== id));
     setDeletingTenantId(null);
+    sbDelete("plud_tenants", id)
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase delete (tenant) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
   const saveListing = useCallback((l) => {
     setListings((prev) => prev.map((p) => (p.id === l.id ? l : p)));
     setEditingListing(null);
+    sbUpsert("plud_listings", [listingStateToRow(l)])
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase save (listing) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
   const stats = useMemo(() => {
