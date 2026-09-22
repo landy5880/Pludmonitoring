@@ -1745,6 +1745,19 @@ export default function PLUDLeasingTracker() {
             </div>
 
             <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Quick actions</h2>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowNewTenant(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  <Plus size={16} /> Add tenant
+                </button>
+              </div>
+              <p className="mt-2.5 text-xs text-stone-500">Opens the same tenant inquiry form used on the Prospective tenants tab.</p>
+            </section>
+
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Users</h2>
               {users.length === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No users found.</p>
