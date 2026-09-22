@@ -204,6 +204,21 @@
     .nav-item{justify-content:center;}
     .btn-block span{display:none;}
   }
+
+  /* report-specific */
+  .report-type-tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;}
+  .report-type-tab{border:1px solid var(--stone-300); background:#fff; color:var(--stone-600); border-radius:999px; padding:6px 14px; font-size:13px; font-weight:500; cursor:pointer;}
+  .report-type-tab.active{background:var(--teal-700); border-color:var(--teal-700); color:#fff;}
+  .report-summary-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
+  @media(min-width:640px){.report-summary-grid{grid-template-columns:repeat(4,1fr);}}
+
+  @media print{
+    .sidebar, .banner, .no-print{display:none !important;}
+    .main{max-width:100% !important; padding:0 !important; margin:0 !important;}
+    .app{display:block !important;}
+    body{background:#fff !important;}
+    .panel, .table-wrap, .stat-card{border:1px solid #ccc !important; box-shadow:none !important;}
+  }
 </style>
 </head>
 <body>
@@ -377,6 +392,9 @@ function icon(name, size, cls) {
     lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
     settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
     wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>',
+    report: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line><line x1="9" y1="9" x2="10" y2="9"></line>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
+    printer: '<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>',
   };
   return `<svg class="icon ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
 }
@@ -412,6 +430,9 @@ const state = {
   maintFormError: "",
   maintStatusFilter: "All",
   maintPropertyFilter: "All",
+  reportType: "pipeline",
+  reportFrom: "",
+  reportTo: "",
 };
 
 /* ---------------------------------------------------------------------- */
@@ -764,6 +785,7 @@ const NAV_ITEMS = [
   { id: "tenants", label: "Prospective tenants", icon: "users" },
   { id: "listings", label: "PLUD listings", icon: "building" },
   { id: "maintenance", label: "Maintenance", icon: "wrench" },
+  { id: "reports", label: "Reports", icon: "report" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -812,6 +834,7 @@ function tabContentHtml() {
   if (state.tab === "tenants") return tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
   if (state.tab === "maintenance") return maintenanceTabHtml();
+  if (state.tab === "reports") return reportsTabHtml();
   if (state.tab === "settings") return settingsHtml();
   return "";
 }
@@ -1311,6 +1334,219 @@ function saveListing() {
     const el = document.getElementById("save-banner");
     if (el) el.outerHTML = bannerHtml();
   });
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reports                                                                 */
+/* ---------------------------------------------------------------------- */
+const REPORT_TYPES = [
+  { id: "pipeline", label: "Leasing Pipeline" },
+  { id: "occupancy", label: "Occupancy" },
+  { id: "maintenance", label: "Maintenance" },
+];
+
+function inReportDateRange(dateStr) {
+  if (!state.reportFrom && !state.reportTo) return true;
+  if (!dateStr) return false;
+  if (state.reportFrom && dateStr < state.reportFrom) return false;
+  if (state.reportTo && dateStr > state.reportTo) return false;
+  return true;
+}
+
+function reportPipelineRows() {
+  return state.tenants
+    .filter((t) => inReportDateRange(t.dateInquired))
+    .slice()
+    .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
+}
+function reportMaintenanceRows() {
+  return state.maintenance
+    .filter((m) => inReportDateRange(m.reportedDate))
+    .slice()
+    .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
+}
+function reportOccupancyRows() {
+  return listingsComputed();
+}
+
+function reportsTabHtml() {
+  const type = state.reportType;
+  return `
+  <div>
+    <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+      <div>
+        <h1 class="page-title">Reports</h1>
+        <p class="page-sub">Export or print a snapshot of your leasing, occupancy, or maintenance data.</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="window.print()">${icon("printer", 16)} Print</button>
+        <button class="btn btn-primary" onclick="exportReportCsv()">${icon("download", 16)} Export CSV</button>
+      </div>
+    </div>
+
+    <div class="report-type-tabs no-print">
+      ${REPORT_TYPES.map((r) => `<button class="report-type-tab ${type === r.id ? "active" : ""}" onclick="setReportType('${r.id}')">${r.label}</button>`).join("")}
+    </div>
+
+    ${type !== "occupancy" ? `
+    <div class="toolbar no-print">
+      <label style="font-size:12px;color:var(--stone-600);display:flex;align-items:center;gap:6px;">From
+        <input type="date" class="input" style="width:auto;" value="${esc(state.reportFrom)}" onchange="onReportDateChange('reportFrom', this.value)" />
+      </label>
+      <label style="font-size:12px;color:var(--stone-600);display:flex;align-items:center;gap:6px;">To
+        <input type="date" class="input" style="width:auto;" value="${esc(state.reportTo)}" onchange="onReportDateChange('reportTo', this.value)" />
+      </label>
+    </div>` : ""}
+
+    <div id="report-body">${reportBodyHtml()}</div>
+  </div>`;
+}
+
+function reportBodyHtml() {
+  if (state.reportType === "pipeline") return reportPipelineHtml();
+  if (state.reportType === "maintenance") return reportMaintenanceHtml();
+  return reportOccupancyHtml();
+}
+
+function reportPipelineHtml() {
+  const rows = reportPipelineRows();
+  const total = rows.length;
+  const awarded = rows.filter((r) => r.status === "Awarded/ Leased").length;
+  const lost = rows.filter((r) => r.status === "Lost/ Inactive").length;
+  const active = total - awarded - lost;
+  return `
+  <div class="report-summary-grid">
+    <div class="stat-card"><p class="stat-label">Total inquiries</p><p class="stat-value">${total}</p></div>
+    <div class="stat-card"><p class="stat-label">Active</p><p class="stat-value blue">${active}</p></div>
+    <div class="stat-card"><p class="stat-label">Awarded / leased</p><p class="stat-value emerald">${awarded}</p></div>
+    <div class="stat-card"><p class="stat-label">Lost / inactive</p><p class="stat-value rose">${lost}</p></div>
+  </div>
+  <div class="table-wrap"><div class="table-scroll">
+    <table class="data">
+      <thead><tr><th>Date</th><th>Brand / tenant</th><th>Category</th><th>Property / unit</th><th>Contact</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.length === 0 ? `<tr><td colspan="6" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records in this date range.</td></tr>` : rows.map((t) => `
+          <tr>
+            <td style="white-space:nowrap;">${fmtDate(t.dateInquired)}</td>
+            <td>${esc(t.brand || t.concept || "(no brand/concept yet)")}</td>
+            <td>${esc(t.category)}</td>
+            <td>${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</td>
+            <td>${esc(t.contact)}</td>
+            <td>${badgeHtml(t.status)}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function reportMaintenanceHtml() {
+  const rows = reportMaintenanceRows();
+  const total = rows.length;
+  const open = rows.filter((r) => r.status === "Open" || r.status === "In Progress").length;
+  const resolved = rows.filter((r) => r.status === "Resolved").length;
+  const urgent = rows.filter((r) => r.priority === "Urgent").length;
+  return `
+  <div class="report-summary-grid">
+    <div class="stat-card"><p class="stat-label">Total requests</p><p class="stat-value">${total}</p></div>
+    <div class="stat-card"><p class="stat-label">Open / in progress</p><p class="stat-value blue">${open}</p></div>
+    <div class="stat-card"><p class="stat-label">Resolved</p><p class="stat-value emerald">${resolved}</p></div>
+    <div class="stat-card"><p class="stat-label">Urgent priority</p><p class="stat-value rose">${urgent}</p></div>
+  </div>
+  <div class="table-wrap"><div class="table-scroll">
+    <table class="data">
+      <thead><tr><th>Reported</th><th>Property / unit</th><th>Issue</th><th>Priority</th><th>Assigned to</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.length === 0 ? `<tr><td colspan="6" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records in this date range.</td></tr>` : rows.map((m) => `
+          <tr>
+            <td style="white-space:nowrap;">${fmtDate(m.reportedDate)}</td>
+            <td>${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</td>
+            <td>${esc(m.issue)}</td>
+            <td>${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}</td>
+            <td>${esc(m.assignedTo || "—")}</td>
+            <td>${badgeHtml(m.status, MAINT_STATUS_STYLE)}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function reportOccupancyHtml() {
+  const rows = reportOccupancyRows();
+  const total = rows.length;
+  const available = rows.filter((r) => r.kind === "available").length;
+  const occupied = rows.filter((r) => r.kind === "occupied").length;
+  const rate = total ? Math.round((occupied / total) * 100) : 0;
+  return `
+  <div class="report-summary-grid">
+    <div class="stat-card"><p class="stat-label">Total units</p><p class="stat-value">${total}</p></div>
+    <div class="stat-card"><p class="stat-label">Available</p><p class="stat-value emerald">${available}</p></div>
+    <div class="stat-card"><p class="stat-label">Occupied</p><p class="stat-value">${occupied}</p></div>
+    <div class="stat-card"><p class="stat-label">Occupancy rate</p><p class="stat-value">${rate}%</p></div>
+  </div>
+  <div class="table-wrap"><div class="table-scroll">
+    <table class="data">
+      <thead><tr><th>Property</th><th>Unit</th><th>Floor area</th><th>Asking rate</th><th>Est. monthly rent</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.map((l) => `
+          <tr>
+            <td>${esc(l.property)}</td>
+            <td>${esc(l.unit)}</td>
+            <td>${l.floorArea ? esc(l.floorArea) + " sqm" : "—"}</td>
+            <td>${l.askingRate ? "₱" + Number(l.askingRate).toLocaleString() + "/sqm" : "—"}</td>
+            <td>${l.floorArea && l.askingRate ? fmtMoney(Number(l.floorArea) * Number(l.askingRate)) : "—"}</td>
+            <td>${esc(l.label)}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function setReportType(id) {
+  state.reportType = id;
+  render();
+}
+function onReportDateChange(field, value) {
+  state[field] = value;
+  const el = document.getElementById("report-body");
+  if (el) el.innerHTML = reportBodyHtml();
+}
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportReportCsv() {
+  if (state.reportType === "pipeline") {
+    const header = ["Date inquired", "Brand/tenant", "Category", "Concept", "Property", "Unit", "Contact", "Mobile", "Email", "Status", "Remarks"];
+    const data = reportPipelineRows().map((t) => [t.dateInquired, t.brand, t.category, t.concept, t.property, t.unit, t.contact, t.mobile, t.email, t.status, t.remarks]);
+    downloadCsv("plud-leasing-pipeline.csv", [header, ...data]);
+  } else if (state.reportType === "maintenance") {
+    const header = ["Reported date", "Property", "Unit", "Issue", "Priority", "Status", "Assigned to", "Resolved date", "Notes"];
+    const data = reportMaintenanceRows().map((m) => [m.reportedDate, m.property, m.unit, m.issue, m.priority, m.status, m.assignedTo, m.resolvedDate, m.notes]);
+    downloadCsv("plud-maintenance.csv", [header, ...data]);
+  } else {
+    const header = ["Property", "Unit", "Floor area (sqm)", "Asking rate (PHP/sqm)", "Est. monthly rent", "Status", "Active inquiries"];
+    const data = reportOccupancyRows().map((l) => [
+      l.property, l.unit, l.floorArea, l.askingRate,
+      l.floorArea && l.askingRate ? Number(l.floorArea) * Number(l.askingRate) : "",
+      l.label, l.count,
+    ]);
+    downloadCsv("plud-occupancy.csv", [header, ...data]);
+  }
 }
 
 /* ---------------------------------------------------------------------- */

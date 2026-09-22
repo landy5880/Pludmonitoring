@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LayoutDashboard, Users, Building2, Plus, Pencil, Trash2, X,
   Search, ChevronDown, Phone, Mail, Calendar, MapPin, Check,
-  AlertCircle, Loader2, LogOut, Settings, Wrench,
+  AlertCircle, Loader2, LogOut, Settings, Wrench, FileText, Download, Printer,
 } from "lucide-react";
 
 const PROPERTIES = [
@@ -111,6 +111,30 @@ const SEED_MAINTENANCE = [
     resolvedDate: "2026-08-22", notes: "Replaced ballast, confirmed fixed.",
   },
 ];
+
+const REPORT_TYPES = [
+  { id: "pipeline", label: "Leasing Pipeline" },
+  { id: "occupancy", label: "Occupancy" },
+  { id: "maintenance", label: "Maintenance" },
+];
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
@@ -765,6 +789,10 @@ export default function PLUDLeasingTracker() {
   const [maintStatusFilter, setMaintStatusFilter] = useState("All");
   const [maintPropertyFilter, setMaintPropertyFilter] = useState("All");
 
+  const [reportType, setReportType] = useState("pipeline");
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1034,6 +1062,50 @@ export default function PLUDLeasingTracker() {
       .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
   }, [maintenance, maintStatusFilter, maintPropertyFilter]);
 
+  const inReportDateRange = useCallback((dateStr) => {
+    if (!reportFrom && !reportTo) return true;
+    if (!dateStr) return false;
+    if (reportFrom && dateStr < reportFrom) return false;
+    if (reportTo && dateStr > reportTo) return false;
+    return true;
+  }, [reportFrom, reportTo]);
+
+  const reportPipelineRows = useMemo(() => {
+    return tenants
+      .filter((t) => inReportDateRange(t.dateInquired))
+      .slice()
+      .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
+  }, [tenants, inReportDateRange]);
+
+  const reportMaintenanceRows = useMemo(() => {
+    return maintenance
+      .filter((m) => inReportDateRange(m.reportedDate))
+      .slice()
+      .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
+  }, [maintenance, inReportDateRange]);
+
+  const reportOccupancyRows = listingsComputed;
+
+  const exportReportCsv = useCallback(() => {
+    if (reportType === "pipeline") {
+      const header = ["Date inquired", "Brand/tenant", "Category", "Concept", "Property", "Unit", "Contact", "Mobile", "Email", "Status", "Remarks"];
+      const data = reportPipelineRows.map((t) => [t.dateInquired, t.brand, t.category, t.concept, t.property, t.unit, t.contact, t.mobile, t.email, t.status, t.remarks]);
+      downloadCsv("plud-leasing-pipeline.csv", [header, ...data]);
+    } else if (reportType === "maintenance") {
+      const header = ["Reported date", "Property", "Unit", "Issue", "Priority", "Status", "Assigned to", "Resolved date", "Notes"];
+      const data = reportMaintenanceRows.map((m) => [m.reportedDate, m.property, m.unit, m.issue, m.priority, m.status, m.assignedTo, m.resolvedDate, m.notes]);
+      downloadCsv("plud-maintenance.csv", [header, ...data]);
+    } else {
+      const header = ["Property", "Unit", "Floor area (sqm)", "Asking rate (PHP/sqm)", "Est. monthly rent", "Status", "Active inquiries"];
+      const data = reportOccupancyRows.map((l) => [
+        l.property, l.unit, l.floorArea, l.askingRate,
+        l.floorArea && l.askingRate ? Number(l.floorArea) * Number(l.askingRate) : "",
+        l.label, l.count,
+      ]);
+      downloadCsv("plud-occupancy.csv", [header, ...data]);
+    }
+  }, [reportType, reportPipelineRows, reportMaintenanceRows, reportOccupancyRows]);
+
   if (userLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50">
@@ -1063,12 +1135,14 @@ export default function PLUDLeasingTracker() {
     { id: "tenants", label: "Prospective tenants", icon: Users },
     { id: "listings", label: "PLUD listings", icon: Building2 },
     { id: "maintenance", label: "Maintenance", icon: Wrench },
+    { id: "reports", label: "Reports", icon: FileText },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
   return (
     <div className="flex min-h-screen bg-stone-50 text-stone-900">
-      <aside className="flex w-64 shrink-0 flex-col bg-slate-900">
+      <style>{"@media print{.no-print{display:none !important;}}"}</style>
+      <aside className="no-print flex w-64 shrink-0 flex-col bg-slate-900">
         <div className="flex items-center gap-2.5 border-b border-slate-800 px-5 py-5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-amber-500 font-serif text-sm text-amber-500">
             P
@@ -1111,7 +1185,7 @@ export default function PLUDLeasingTracker() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {saveError && (
-          <div className="flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-6 py-2 text-xs text-amber-700">
+          <div className="no-print flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-6 py-2 text-xs text-amber-700">
             <AlertCircle size={14} /> {saveError}
           </div>
         )}
@@ -1475,6 +1549,183 @@ export default function PLUDLeasingTracker() {
                   </table>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+        {tab === "reports" && (
+          <div>
+            <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 className="font-serif text-lg font-semibold text-stone-900">Reports</h1>
+                <p className="text-sm text-stone-500">Export or print a snapshot of your leasing, occupancy, or maintenance data.</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                  <Printer size={16} /> Print
+                </button>
+                <button onClick={exportReportCsv} className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800">
+                  <Download size={16} /> Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="no-print mb-4 flex flex-wrap gap-1.5">
+              {REPORT_TYPES.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setReportType(r.id)}
+                  className={`rounded-full border px-3.5 py-1.5 text-sm font-medium ${
+                    reportType === r.id ? "border-amber-700 bg-amber-700 text-white" : "border-stone-300 bg-white text-stone-600"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+
+            {reportType !== "occupancy" && (
+              <div className="no-print mb-4 flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-xs text-stone-600">
+                  From
+                  <input type="date" className={`${inputCls} w-auto`} value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} />
+                </label>
+                <label className="flex items-center gap-2 text-xs text-stone-600">
+                  To
+                  <input type="date" className={`${inputCls} w-auto`} value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
+                </label>
+              </div>
+            )}
+
+            {reportType === "pipeline" && (
+              <>
+                <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatCard label="Total inquiries" value={reportPipelineRows.length} />
+                  <StatCard
+                    label="Active"
+                    value={reportPipelineRows.length - reportPipelineRows.filter((r) => r.status === "Awarded/ Leased" || r.status === "Lost/ Inactive").length}
+                    accent="text-blue-700"
+                  />
+                  <StatCard label="Awarded / leased" value={reportPipelineRows.filter((r) => r.status === "Awarded/ Leased").length} accent="text-emerald-700" />
+                  <StatCard label="Lost / inactive" value={reportPipelineRows.filter((r) => r.status === "Lost/ Inactive").length} accent="text-rose-700" />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Date</th>
+                          <th className="px-4 py-3 font-medium">Brand / tenant</th>
+                          <th className="px-4 py-3 font-medium">Category</th>
+                          <th className="px-4 py-3 font-medium">Property / unit</th>
+                          <th className="px-4 py-3 font-medium">Contact</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {reportPipelineRows.length === 0 ? (
+                          <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone-500">No records in this date range.</td></tr>
+                        ) : reportPipelineRows.map((t) => (
+                          <tr key={t.id} className="hover:bg-stone-50">
+                            <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(t.dateInquired)}</td>
+                            <td className="px-4 py-3 text-stone-900">{t.brand || t.concept || "(no brand/concept yet)"}</td>
+                            <td className="px-4 py-3 text-stone-600">{t.category}</td>
+                            <td className="px-4 py-3 text-stone-600">{t.property}{t.unit ? ` · ${t.unit}` : ""}</td>
+                            <td className="px-4 py-3 text-stone-600">{t.contact}</td>
+                            <td className="px-4 py-3"><Badge status={t.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {reportType === "maintenance" && (
+              <>
+                <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatCard label="Total requests" value={reportMaintenanceRows.length} />
+                  <StatCard
+                    label="Open / in progress"
+                    value={reportMaintenanceRows.filter((r) => r.status === "Open" || r.status === "In Progress").length}
+                    accent="text-blue-700"
+                  />
+                  <StatCard label="Resolved" value={reportMaintenanceRows.filter((r) => r.status === "Resolved").length} accent="text-emerald-700" />
+                  <StatCard label="Urgent priority" value={reportMaintenanceRows.filter((r) => r.priority === "Urgent").length} accent="text-rose-700" />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Reported</th>
+                          <th className="px-4 py-3 font-medium">Property / unit</th>
+                          <th className="px-4 py-3 font-medium">Issue</th>
+                          <th className="px-4 py-3 font-medium">Priority</th>
+                          <th className="px-4 py-3 font-medium">Assigned to</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {reportMaintenanceRows.length === 0 ? (
+                          <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-stone-500">No records in this date range.</td></tr>
+                        ) : reportMaintenanceRows.map((m) => (
+                          <tr key={m.id} className="hover:bg-stone-50">
+                            <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(m.reportedDate)}</td>
+                            <td className="px-4 py-3 text-stone-600">{m.property}{m.unit ? ` · ${m.unit}` : ""}</td>
+                            <td className="px-4 py-3 text-stone-900">{m.issue}</td>
+                            <td className="px-4 py-3"><Badge status={m.priority} styleMap={MAINT_PRIORITY_STYLE} /></td>
+                            <td className="px-4 py-3 text-stone-600">{m.assignedTo || "—"}</td>
+                            <td className="px-4 py-3"><Badge status={m.status} styleMap={MAINT_STATUS_STYLE} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {reportType === "occupancy" && (
+              <>
+                <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatCard label="Total units" value={reportOccupancyRows.length} />
+                  <StatCard label="Available" value={reportOccupancyRows.filter((r) => r.kind === "available").length} accent="text-emerald-700" />
+                  <StatCard label="Occupied" value={reportOccupancyRows.filter((r) => r.kind === "occupied").length} />
+                  <StatCard
+                    label="Occupancy rate"
+                    value={`${reportOccupancyRows.length ? Math.round((reportOccupancyRows.filter((r) => r.kind === "occupied").length / reportOccupancyRows.length) * 100) : 0}%`}
+                  />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Property</th>
+                          <th className="px-4 py-3 font-medium">Unit</th>
+                          <th className="px-4 py-3 font-medium">Floor area</th>
+                          <th className="px-4 py-3 font-medium">Asking rate</th>
+                          <th className="px-4 py-3 font-medium">Est. monthly rent</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {reportOccupancyRows.map((l) => (
+                          <tr key={l.id} className="hover:bg-stone-50">
+                            <td className="px-4 py-3 text-stone-900">{l.property}</td>
+                            <td className="px-4 py-3 text-stone-600">{l.unit}</td>
+                            <td className="px-4 py-3 text-stone-600">{l.floorArea ? `${l.floorArea} sqm` : "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{l.askingRate ? `₱${Number(l.askingRate).toLocaleString()}/sqm` : "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{l.floorArea && l.askingRate ? fmtMoney(Number(l.floorArea) * Number(l.askingRate)) : "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{l.label}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
