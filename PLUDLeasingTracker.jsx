@@ -1576,7 +1576,23 @@ export default function PLUDLeasingTracker() {
                                 {l.label}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right text-stone-600">{l.count}</td>
+                            <td className="px-4 py-3 text-right text-stone-600">
+                              {l.count > 0 ? (
+                                <button
+                                  onClick={() => {
+                                    setTab("tenants");
+                                    setTenantPropertyFilter(l.property);
+                                    setTenantStatusFilter("All");
+                                    setTenantSearch(l.unit);
+                                  }}
+                                  className="font-semibold text-amber-700 underline decoration-1 underline-offset-2 hover:text-amber-800"
+                                >
+                                  {l.count}
+                                </button>
+                              ) : (
+                                <span className="text-stone-400">0</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-right">
                               {(!l.floorArea && !l.askingRate) ? (
                                 <button
