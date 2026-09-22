@@ -631,8 +631,18 @@ function ListingModal({ listing, isNew, onClose, onSave, existingListings }) {
   );
 }
 
-function ChipOptionPanel({ title, fixedOptions, customOptions, onAdd, onDelete, error, placeholder, note }) {
+function DropdownOptionPanel({ title, allOptions, fixedOptions, onAdd, onDelete, error, placeholder, note }) {
+  const [selected, setSelected] = useState(allOptions[0] || "");
   const [value, setValue] = useState("");
+
+  useEffect(() => {
+    if (!allOptions.includes(selected)) setSelected(allOptions[0] || "");
+  }, [allOptions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDelete = () => {
+    if (!selected) return;
+    onDelete(selected);
+  };
 
   const handleAdd = async () => {
     const ok = await onAdd(value);
@@ -642,18 +652,15 @@ function ChipOptionPanel({ title, fixedOptions, customOptions, onAdd, onDelete, 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4">
       <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">{title}</h2>
-      <div className="mb-2.5 flex flex-wrap gap-1.5">
-        {fixedOptions.map((c) => (
-          <span key={c} className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700">{c}</span>
-        ))}
-        {customOptions.map((o) => (
-          <span key={o.id} className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 py-1.5 pl-3 pr-1.5 text-xs font-medium text-stone-700">
-            {o.value}
-            <button onClick={() => onDelete(o.id)} className="flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-stone-600 hover:bg-rose-100 hover:text-rose-700" aria-label="Remove">
-              <X size={10} />
-            </button>
-          </span>
-        ))}
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        <select className={`${inputCls} w-auto`} value={selected} onChange={(e) => setSelected(e.target.value)}>
+          {allOptions.map((o) => (
+            <option key={o} value={o}>{o}{fixedOptions.includes(o) ? " (built-in)" : ""}</option>
+          ))}
+        </select>
+        <button onClick={handleDelete} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <Trash2 size={14} /> Delete
+        </button>
       </div>
       {error && (
         <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -668,8 +675,8 @@ function ChipOptionPanel({ title, fixedOptions, customOptions, onAdd, onDelete, 
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
-        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
-          <Plus size={15} /> Add
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800">
+          <Plus size={15} /> Save
         </button>
       </div>
       {note && <p className="mt-2 text-xs text-stone-500">{note}</p>}
@@ -677,11 +684,21 @@ function ChipOptionPanel({ title, fixedOptions, customOptions, onAdd, onDelete, 
   );
 }
 
-function ConceptOptionsPanel({ categories, conceptOptionsFor, customConcepts, selectedCategory, onSelectCategory, onAdd, onDelete, error }) {
+function ConceptOptionsPanel({ categories, conceptOptionsFor, selectedCategory, onSelectCategory, onAdd, onDelete, error }) {
+  const [selected, setSelected] = useState("");
   const [value, setValue] = useState("");
   const cat = selectedCategory || categories[0] || "";
   const fixed = CATEGORY_CONCEPTS[cat] || [];
-  const custom = customConcepts.filter((o) => o.parent_category === cat);
+  const options = conceptOptionsFor(cat);
+
+  useEffect(() => {
+    if (!options.includes(selected)) setSelected(options[0] || "");
+  }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDelete = () => {
+    if (!selected) return;
+    onDelete(selected, cat);
+  };
 
   const handleAdd = async () => {
     const ok = await onAdd(cat, value);
@@ -697,24 +714,19 @@ function ConceptOptionsPanel({ categories, conceptOptionsFor, customConcepts, se
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
-      <div className="mb-2.5 flex flex-wrap gap-1.5">
-        {fixed.length === 0 && custom.length === 0 ? (
-          <p className="py-1 text-sm text-stone-500">No concepts yet for this category.</p>
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        {options.length === 0 ? (
+          <p className="text-sm text-stone-500">No concepts yet for this category.</p>
         ) : (
-          <>
-            {fixed.map((c) => (
-              <span key={c} className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700">{c}</span>
+          <select className={`${inputCls} w-auto`} value={selected} onChange={(e) => setSelected(e.target.value)}>
+            {options.map((o) => (
+              <option key={o} value={o}>{o}{fixed.includes(o) ? " (built-in)" : ""}</option>
             ))}
-            {custom.map((o) => (
-              <span key={o.id} className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 py-1.5 pl-3 pr-1.5 text-xs font-medium text-stone-700">
-                {o.value}
-                <button onClick={() => onDelete(o.id)} className="flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-stone-600 hover:bg-rose-100 hover:text-rose-700" aria-label="Remove">
-                  <X size={10} />
-                </button>
-              </span>
-            ))}
-          </>
+          </select>
         )}
+        <button onClick={handleDelete} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <Trash2 size={14} /> Delete
+        </button>
       </div>
       {error && (
         <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -729,8 +741,8 @@ function ConceptOptionsPanel({ categories, conceptOptionsFor, customConcepts, se
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
-        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
-          <Plus size={15} /> Add concept
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800">
+          <Plus size={15} /> Save
         </button>
       </div>
     </section>
@@ -1165,6 +1177,27 @@ export default function PLUDLeasingTracker() {
       console.error("Delete option failed:", e);
     }
   }, []);
+
+  const deleteCategoryByValue = useCallback((value) => {
+    setOptionError((e) => ({ ...e, category: "" }));
+    if (CATEGORIES.includes(value)) { setOptionError((e) => ({ ...e, category: "Built-in categories can't be deleted." })); return; }
+    const opt = customCategories.find((o) => o.value === value);
+    if (opt) deleteCustomOption(opt.id);
+  }, [customCategories, deleteCustomOption]);
+
+  const deleteStatusByValue = useCallback((value) => {
+    setOptionError((e) => ({ ...e, status: "" }));
+    if (STATUSES.includes(value)) { setOptionError((e) => ({ ...e, status: "Built-in statuses can't be deleted." })); return; }
+    const opt = customStatuses.find((o) => o.value === value);
+    if (opt) deleteCustomOption(opt.id);
+  }, [customStatuses, deleteCustomOption]);
+
+  const deleteConceptByValue = useCallback((value, category) => {
+    setOptionError((e) => ({ ...e, concept: "" }));
+    if ((CATEGORY_CONCEPTS[category] || []).includes(value)) { setOptionError((e) => ({ ...e, concept: "Built-in concepts can't be deleted." })); return; }
+    const opt = customConcepts.find((o) => o.value === value && o.parent_category === category);
+    if (opt) deleteCustomOption(opt.id);
+  }, [customConcepts, deleteCustomOption]);
 
   const unitsByProperty = useMemo(() => {
     const map = {};
@@ -2112,12 +2145,12 @@ export default function PLUDLeasingTracker() {
               <p className="mt-2.5 text-xs text-stone-500">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
             </section>
 
-            <ChipOptionPanel
+            <DropdownOptionPanel
               title="Categories"
+              allOptions={allCategoryOptions}
               fixedOptions={CATEGORIES}
-              customOptions={customCategories}
               onAdd={addCustomCategory}
-              onDelete={deleteCustomOption}
+              onDelete={deleteCategoryByValue}
               error={optionError.category}
               placeholder="New category name"
             />
@@ -2125,20 +2158,19 @@ export default function PLUDLeasingTracker() {
             <ConceptOptionsPanel
               categories={allCategoryOptions}
               conceptOptionsFor={conceptOptionsFor}
-              customConcepts={customConcepts}
               selectedCategory={settingsConceptCategory}
               onSelectCategory={setSettingsConceptCategory}
               onAdd={addCustomConcept}
-              onDelete={deleteCustomOption}
+              onDelete={deleteConceptByValue}
               error={optionError.concept}
             />
 
-            <ChipOptionPanel
+            <DropdownOptionPanel
               title="Statuses"
+              allOptions={allStatusOptions}
               fixedOptions={STATUSES}
-              customOptions={customStatuses}
               onAdd={addCustomStatus}
-              onDelete={deleteCustomOption}
+              onDelete={deleteStatusByValue}
               error={optionError.status}
               placeholder="New status name"
               note={'New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.'}

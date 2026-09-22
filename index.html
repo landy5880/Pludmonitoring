@@ -1747,10 +1747,15 @@ function settingsHtml() {
 
     <section class="panel">
       <h2 class="section-title">Categories</h2>
-      <div id="categories-chip-row" class="chip-row">${categoriesChipsHtml()}</div>
+      <div class="add-option-row" style="margin-bottom:10px;">
+        <select id="category-select" class="input" style="width:auto;">
+          ${allCategories().map((c) => `<option value="${esc(c)}">${esc(c)}${CATEGORIES.includes(c) ? " (built-in)" : ""}</option>`).join("")}
+        </select>
+        <button class="btn btn-outline" onclick="deleteSelectedCategory()">${icon("trash", 14)} Delete</button>
+      </div>
       <div class="add-option-row">
         <input id="new-category-value" class="input" placeholder="New category name" onkeydown="if(event.key==='Enter'){addCustomCategory();}" />
-        <button class="btn btn-outline" onclick="addCustomCategory()">${icon("plus", 15)} Add category</button>
+        <button class="btn btn-primary" onclick="addCustomCategory()">${icon("plus", 15)} Save</button>
       </div>
       <div id="option-error-category"></div>
     </section>
@@ -1763,20 +1768,30 @@ function settingsHtml() {
           ${allCategories().map((c) => `<option value="${esc(c)}" ${((state.settingsConceptCategory || allCategories()[0]) === c) ? "selected" : ""}>${esc(c)}</option>`).join("")}
         </select>
       </div>
-      <div id="concepts-chip-row" class="chip-row">${conceptsChipsHtml()}</div>
+      <div class="add-option-row" style="margin-bottom:10px;">
+        <select id="concept-select" class="input" style="width:auto;">
+          ${allConceptsFor(state.settingsConceptCategory || allCategories()[0]).map((c) => `<option value="${esc(c)}">${esc(c)}${(CATEGORY_CONCEPTS[state.settingsConceptCategory || allCategories()[0]] || []).includes(c) ? " (built-in)" : ""}</option>`).join("")}
+        </select>
+        <button class="btn btn-outline" onclick="deleteSelectedConcept()">${icon("trash", 14)} Delete</button>
+      </div>
       <div class="add-option-row">
         <input id="new-concept-value" class="input" placeholder="New concept name" onkeydown="if(event.key==='Enter'){addCustomConcept();}" />
-        <button class="btn btn-outline" onclick="addCustomConcept()">${icon("plus", 15)} Add concept</button>
+        <button class="btn btn-primary" onclick="addCustomConcept()">${icon("plus", 15)} Save</button>
       </div>
       <div id="option-error-concept"></div>
     </section>
 
     <section class="panel">
       <h2 class="section-title">Statuses</h2>
-      <div id="statuses-chip-row" class="chip-row">${statusesChipsHtml()}</div>
+      <div class="add-option-row" style="margin-bottom:10px;">
+        <select id="status-select" class="input" style="width:auto;">
+          ${allStatuses().map((s) => `<option value="${esc(s)}">${esc(s)}${STATUSES.includes(s) ? " (built-in)" : ""}</option>`).join("")}
+        </select>
+        <button class="btn btn-outline" onclick="deleteSelectedStatus()">${icon("trash", 14)} Delete</button>
+      </div>
       <div class="add-option-row">
         <input id="new-status-value" class="input" placeholder="New status name" onkeydown="if(event.key==='Enter'){addCustomStatus();}" />
-        <button class="btn btn-outline" onclick="addCustomStatus()">${icon("plus", 15)} Add status</button>
+        <button class="btn btn-primary" onclick="addCustomStatus()">${icon("plus", 15)} Save</button>
       </div>
       <p style="margin:8px 0 0;font-size:12px;color:var(--stone-500);">New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.</p>
       <div id="option-error-status"></div>
@@ -1907,35 +1922,60 @@ function confirmDeleteUserDialogHtml() {
 /* ---------------------------------------------------------------------- */
 /* Category / Concept / Status options                                     */
 /* ---------------------------------------------------------------------- */
-function categoriesChipsHtml() {
-  const fixed = CATEGORIES.map((c) => `<span class="chip fixed">${esc(c)}</span>`).join("");
-  const custom = state.customCategories.map((o) => `<span class="chip">${esc(o.value)}<button onclick="deleteCustomOption('${o.id}')" aria-label="Remove">${icon("x", 10)}</button></span>`).join("");
-  return fixed + custom;
+function categorySelectOptionsHtml() {
+  return allCategories().map((c) => `<option value="${esc(c)}">${esc(c)}${CATEGORIES.includes(c) ? " (built-in)" : ""}</option>`).join("");
 }
-function conceptsChipsHtml() {
+function conceptSelectOptionsHtml() {
   const cat = state.settingsConceptCategory || allCategories()[0] || "";
-  const fixed = (CATEGORY_CONCEPTS[cat] || []).map((c) => `<span class="chip fixed">${esc(c)}</span>`).join("");
-  const custom = state.customConcepts
-    .filter((o) => o.parent_category === cat)
-    .map((o) => `<span class="chip">${esc(o.value)}<button onclick="deleteCustomOption('${o.id}')" aria-label="Remove">${icon("x", 10)}</button></span>`)
-    .join("");
-  return (fixed + custom) || `<p class="empty-note" style="padding:8px 0;">No concepts yet for this category.</p>`;
+  const builtIn = CATEGORY_CONCEPTS[cat] || [];
+  const list = allConceptsFor(cat);
+  if (list.length === 0) return `<option value="">No concepts yet</option>`;
+  return list.map((c) => `<option value="${esc(c)}">${esc(c)}${builtIn.includes(c) ? " (built-in)" : ""}</option>`).join("");
 }
-function statusesChipsHtml() {
-  const fixed = STATUSES.map((s) => `<span class="chip fixed">${esc(s)}</span>`).join("");
-  const custom = state.customStatuses.map((o) => `<span class="chip">${esc(o.value)}<button onclick="deleteCustomOption('${o.id}')" aria-label="Remove">${icon("x", 10)}</button></span>`).join("");
-  return fixed + custom;
+function statusSelectOptionsHtml() {
+  return allStatuses().map((s) => `<option value="${esc(s)}">${esc(s)}${STATUSES.includes(s) ? " (built-in)" : ""}</option>`).join("");
 }
 
 function onSettingsConceptCategoryChange(value) {
   state.settingsConceptCategory = value;
-  const el = document.getElementById("concepts-chip-row");
-  if (el) el.innerHTML = conceptsChipsHtml();
+  const el = document.getElementById("concept-select");
+  if (el) el.innerHTML = conceptSelectOptionsHtml();
 }
 
 function showOptionError(type, msg) {
   const el = document.getElementById(`option-error-${type}`);
   if (el) el.innerHTML = msg ? `<div class="form-error" style="margin-top:8px;">${icon("alert", 16)} ${esc(msg)}</div>` : "";
+}
+
+async function deleteSelectedCategory() {
+  const value = document.getElementById("category-select").value;
+  showOptionError("category", "");
+  if (CATEGORIES.includes(value)) { showOptionError("category", "Built-in categories can't be deleted."); return; }
+  const opt = state.customCategories.find((o) => o.value === value);
+  if (!opt) return;
+  await deleteCustomOption(opt.id);
+  document.getElementById("category-select").innerHTML = categorySelectOptionsHtml();
+}
+
+async function deleteSelectedConcept() {
+  const value = document.getElementById("concept-select").value;
+  const cat = state.settingsConceptCategory || allCategories()[0] || "";
+  showOptionError("concept", "");
+  if ((CATEGORY_CONCEPTS[cat] || []).includes(value)) { showOptionError("concept", "Built-in concepts can't be deleted."); return; }
+  const opt = state.customConcepts.find((o) => o.value === value && o.parent_category === cat);
+  if (!opt) return;
+  await deleteCustomOption(opt.id);
+  document.getElementById("concept-select").innerHTML = conceptSelectOptionsHtml();
+}
+
+async function deleteSelectedStatus() {
+  const value = document.getElementById("status-select").value;
+  showOptionError("status", "");
+  if (STATUSES.includes(value)) { showOptionError("status", "Built-in statuses can't be deleted."); return; }
+  const opt = state.customStatuses.find((o) => o.value === value);
+  if (!opt) return;
+  await deleteCustomOption(opt.id);
+  document.getElementById("status-select").innerHTML = statusSelectOptionsHtml();
 }
 
 async function addCustomCategory() {
@@ -1973,7 +2013,7 @@ async function addCustomConcept() {
     if (error) throw error;
     state.customConcepts = [...state.customConcepts, row];
     input.value = "";
-    document.getElementById("concepts-chip-row").innerHTML = conceptsChipsHtml();
+    document.getElementById("concept-select").innerHTML = conceptSelectOptionsHtml();
   } catch (e) {
     console.error("Add concept failed:", e);
     showOptionError("concept", "Couldn't save this concept — try again.");
