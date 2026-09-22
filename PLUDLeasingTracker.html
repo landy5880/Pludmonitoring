@@ -159,6 +159,13 @@
   .row-actions{display:flex; justify-content:flex-end; gap:4px;}
   .link-count{background:none; border:none; padding:0; font-size:14px; font-weight:600; color:var(--teal-700); cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
   .link-count:hover{color:var(--teal-800);}
+  .chip{display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:5px 6px 5px 12px; font-size:12.5px; font-weight:500; background:var(--stone-100); color:var(--stone-700); border:1px solid var(--stone-200);}
+  .chip.fixed{padding:5px 12px;}
+  .chip button{border:none; background:var(--stone-200); color:var(--stone-600); width:16px; height:16px; border-radius:999px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; font-size:11px; line-height:1;}
+  .chip button:hover{background:var(--rose-100); color:var(--rose-700);}
+  .chip-row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .add-option-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+  .add-option-row .input{width:auto; flex:1; min-width:140px;}
   .btn-xs{display:inline-flex; align-items:center; gap:4px; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:500; border:1px solid var(--teal-700); color:var(--teal-700); background:#fff; cursor:pointer; white-space:nowrap;}
   .btn-xs:hover{background:var(--amber-50);}
   .empty-state{border:1px dashed var(--stone-300); background:#fff; border-radius:8px; padding:56px 16px; text-align:center;}
@@ -440,7 +447,27 @@ const state = {
   reportFrom: "",
   reportTo: "",
   reportSearch: "",
+  customCategories: [],
+  customConcepts: [],
+  customStatuses: [],
+  showAddOption: null,
+  optionFormError: "",
+  settingsConceptCategory: "",
 };
+
+function allCategories() {
+  const extra = state.customCategories.map((o) => o.value).filter((v) => !CATEGORIES.includes(v));
+  return [...CATEGORIES, ...extra];
+}
+function allConceptsFor(category) {
+  const base = CATEGORY_CONCEPTS[category] || [];
+  const extra = state.customConcepts.filter((o) => o.parent_category === category).map((o) => o.value).filter((v) => !base.includes(v));
+  return [...base, ...extra];
+}
+function allStatuses() {
+  const extra = state.customStatuses.map((o) => o.value).filter((v) => !STATUSES.includes(v));
+  return [...STATUSES, ...extra];
+}
 
 /* ---------------------------------------------------------------------- */
 /* Persistence                                                             */
@@ -541,16 +568,18 @@ async function init() {
 async function loadData() {
   state.loading = true;
   try {
-    const [tenantsRes, listingsRes, usersRes, maintRes] = await Promise.all([
+    const [tenantsRes, listingsRes, usersRes, maintRes, optionsRes] = await Promise.all([
       sb.from("plud_tenants").select("*"),
       sb.from("plud_listings").select("*"),
       sb.from("plud_users").select("id, username, name, role, created_at").order("created_at"),
       sb.from("plud_maintenance").select("*"),
+      sb.from("plud_custom_options").select("*").order("created_at"),
     ]);
     if (tenantsRes.error) throw tenantsRes.error;
     if (listingsRes.error) throw listingsRes.error;
     if (usersRes.error) throw usersRes.error;
     if (maintRes.error) throw maintRes.error;
+    if (optionsRes.error) throw optionsRes.error;
 
     if (tenantsRes.data.length === 0 && listingsRes.data.length === 0) {
       // First run against an empty database: seed it once.
@@ -568,6 +597,9 @@ async function loadData() {
     } else {
       state.maintenance = maintRes.data.map(maintRowToState);
     }
+    state.customCategories = optionsRes.data.filter((o) => o.option_type === "category");
+    state.customConcepts = optionsRes.data.filter((o) => o.option_type === "concept");
+    state.customStatuses = optionsRes.data.filter((o) => o.option_type === "status");
     state.users = usersRes.data;
     state.saveError = "";
   } catch (e) {
@@ -576,6 +608,9 @@ async function loadData() {
     state.listings = SEED_LISTINGS;
     state.maintenance = SEED_MAINTENANCE;
     state.users = [];
+    state.customCategories = [];
+    state.customConcepts = [];
+    state.customStatuses = [];
     state.saveError = "Couldn't reach the database — showing local sample data, changes won't be saved.";
   }
   state.loading = false;
@@ -632,7 +667,7 @@ function computeStats() {
   const occupied = lc.filter((l) => l.kind === "occupied").length;
   const occupancyRate = totalUnits ? occupied / totalUnits : 0;
 
-  const byStage = STATUSES.map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
+  const byStage = allStatuses().map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
 
   const byProperty = PROPERTIES.filter((p) => lc.some((l) => l.property === p)).map((p) => {
     const units = lc.filter((l) => l.property === p);
@@ -910,7 +945,7 @@ function dashboardHtml() {
         ${s.byStage.map(({ stage, count }) => `
           <div class="stage-row">
             <span class="stage-label">${esc(stage)}</span>
-            <div class="stage-track"><div class="stage-fill d-${STATUS_STYLE[stage]}" style="width:${(count / maxStage) * 100}%; background:var(--${{slate:"stone-400",amber:"amber-500",blue:"blue-500",emerald:"emerald-500",rose:"rose-600"}[STATUS_STYLE[stage]]});"></div></div>
+            <div class="stage-track"><div class="stage-fill d-${STATUS_STYLE[stage] || "slate"}" style="width:${(count / maxStage) * 100}%; background:var(--${{slate:"stone-400",amber:"amber-500",blue:"blue-500",emerald:"emerald-500",rose:"rose-600"}[STATUS_STYLE[stage] || "slate"]});"></div></div>
             <span class="stage-count">${count}</span>
           </div>`).join("")}
       </section>
@@ -1020,7 +1055,7 @@ function tenantsTabHtml() {
       </div>
       <select class="input auto" onchange="onTenantStatusFilter(this.value)">
         <option value="All" ${state.tenantStatusFilter === "All" ? "selected" : ""}>All statuses</option>
-        ${STATUSES.map((s) => `<option value="${esc(s)}" ${state.tenantStatusFilter === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+        ${allStatuses().map((s) => `<option value="${esc(s)}" ${state.tenantStatusFilter === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
       </select>
       <select class="input auto" onchange="onTenantPropertyFilter(this.value)">
         <option value="All" ${state.tenantPropertyFilter === "All" ? "selected" : ""}>All properties</option>
@@ -1141,7 +1176,7 @@ function tenantModalHtml() {
     property: "", unit: "", remarks: "", unitViewing: "", foodTasting: "",
     status: "Inquired",
   };
-  const concepts = CATEGORY_CONCEPTS[t.category] || [];
+  const concepts = allConceptsFor(t.category);
   const units = t.property ? (unitsByProperty()[t.property] || []) : [];
 
   return `
@@ -1158,7 +1193,7 @@ function tenantModalHtml() {
           <label><span class="field-label">Date inquired</span><input type="date" id="t-dateInquired" class="input" value="${esc(t.dateInquired)}" /></label>
           <label><span class="field-label">Status</span>
             <select id="t-status" class="input">
-              ${STATUSES.map((s) => `<option value="${esc(s)}" ${t.status === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+              ${allStatuses().map((s) => `<option value="${esc(s)}" ${t.status === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
             </select>
           </label>
         </div>
@@ -1170,7 +1205,7 @@ function tenantModalHtml() {
         <div class="grid-2">
           <label><span class="field-label">Category</span>
             <select id="t-category" class="input" onchange="onCategoryChange()">
-              ${CATEGORIES.map((c) => `<option value="${esc(c)}" ${t.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
+              ${allCategories().map((c) => `<option value="${esc(c)}" ${t.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
             </select>
           </label>
           <label><span class="field-label">Concept</span>
@@ -1239,7 +1274,7 @@ function closeTenantModal() { state.showNewTenant = false; state.editingTenant =
 
 function onCategoryChange() {
   const cat = document.getElementById("t-category").value;
-  const concepts = CATEGORY_CONCEPTS[cat] || [];
+  const concepts = allConceptsFor(cat);
   document.getElementById("t-concept").innerHTML = `<option value="">Select concept</option>` + concepts.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
 }
 function onPropertyChange() {
@@ -1711,6 +1746,43 @@ function settingsHtml() {
     </section>
 
     <section class="panel">
+      <h2 class="section-title">Categories</h2>
+      <div id="categories-chip-row" class="chip-row">${categoriesChipsHtml()}</div>
+      <div class="add-option-row">
+        <input id="new-category-value" class="input" placeholder="New category name" onkeydown="if(event.key==='Enter'){addCustomCategory();}" />
+        <button class="btn btn-outline" onclick="addCustomCategory()">${icon("plus", 15)} Add category</button>
+      </div>
+      <div id="option-error-category"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Concepts</h2>
+      <div class="add-option-row" style="margin-bottom:10px;">
+        <span style="font-size:12px;color:var(--stone-600);">For category:</span>
+        <select class="input" style="width:auto;" onchange="onSettingsConceptCategoryChange(this.value)">
+          ${allCategories().map((c) => `<option value="${esc(c)}" ${((state.settingsConceptCategory || allCategories()[0]) === c) ? "selected" : ""}>${esc(c)}</option>`).join("")}
+        </select>
+      </div>
+      <div id="concepts-chip-row" class="chip-row">${conceptsChipsHtml()}</div>
+      <div class="add-option-row">
+        <input id="new-concept-value" class="input" placeholder="New concept name" onkeydown="if(event.key==='Enter'){addCustomConcept();}" />
+        <button class="btn btn-outline" onclick="addCustomConcept()">${icon("plus", 15)} Add concept</button>
+      </div>
+      <div id="option-error-concept"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Statuses</h2>
+      <div id="statuses-chip-row" class="chip-row">${statusesChipsHtml()}</div>
+      <div class="add-option-row">
+        <input id="new-status-value" class="input" placeholder="New status name" onkeydown="if(event.key==='Enter'){addCustomStatus();}" />
+        <button class="btn btn-outline" onclick="addCustomStatus()">${icon("plus", 15)} Add status</button>
+      </div>
+      <p style="margin:8px 0 0;font-size:12px;color:var(--stone-500);">New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.</p>
+      <div id="option-error-status"></div>
+    </section>
+
+    <section class="panel">
       <h2 class="section-title">Users</h2>
       ${state.users.length === 0 ? `<p class="empty-note">No users found.</p>` : `
       <div class="table-wrap"><div class="table-scroll">
@@ -1831,6 +1903,118 @@ function confirmDeleteUserDialogHtml() {
     </div>
   </div>`;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Category / Concept / Status options                                     */
+/* ---------------------------------------------------------------------- */
+function categoriesChipsHtml() {
+  const fixed = CATEGORIES.map((c) => `<span class="chip fixed">${esc(c)}</span>`).join("");
+  const custom = state.customCategories.map((o) => `<span class="chip">${esc(o.value)}<button onclick="deleteCustomOption('${o.id}')" aria-label="Remove">${icon("x", 10)}</button></span>`).join("");
+  return fixed + custom;
+}
+function conceptsChipsHtml() {
+  const cat = state.settingsConceptCategory || allCategories()[0] || "";
+  const fixed = (CATEGORY_CONCEPTS[cat] || []).map((c) => `<span class="chip fixed">${esc(c)}</span>`).join("");
+  const custom = state.customConcepts
+    .filter((o) => o.parent_category === cat)
+    .map((o) => `<span class="chip">${esc(o.value)}<button onclick="deleteCustomOption('${o.id}')" aria-label="Remove">${icon("x", 10)}</button></span>`)
+    .join("");
+  return (fixed + custom) || `<p class="empty-note" style="padding:8px 0;">No concepts yet for this category.</p>`;
+}
+function statusesChipsHtml() {
+  const fixed = STATUSES.map((s) => `<span class="chip fixed">${esc(s)}</span>`).join("");
+  const custom = state.customStatuses.map((o) => `<span class="chip">${esc(o.value)}<button onclick="deleteCustomOption('${o.id}')" aria-label="Remove">${icon("x", 10)}</button></span>`).join("");
+  return fixed + custom;
+}
+
+function onSettingsConceptCategoryChange(value) {
+  state.settingsConceptCategory = value;
+  const el = document.getElementById("concepts-chip-row");
+  if (el) el.innerHTML = conceptsChipsHtml();
+}
+
+function showOptionError(type, msg) {
+  const el = document.getElementById(`option-error-${type}`);
+  if (el) el.innerHTML = msg ? `<div class="form-error" style="margin-top:8px;">${icon("alert", 16)} ${esc(msg)}</div>` : "";
+}
+
+async function addCustomCategory() {
+  const input = document.getElementById("new-category-value");
+  const value = input.value.trim();
+  showOptionError("category", "");
+  if (!value) { showOptionError("category", "Enter a category name."); return; }
+  if (allCategories().some((c) => c.toLowerCase() === value.toLowerCase())) { showOptionError("category", "That category already exists."); return; }
+
+  const row = { id: uid("OPT"), option_type: "category", value, parent_category: "" };
+  try {
+    const { error } = await sb.from("plud_custom_options").insert(row);
+    if (error) throw error;
+    state.customCategories = [...state.customCategories, row];
+    input.value = "";
+    render(); // category lists appear in several selects across the app
+  } catch (e) {
+    console.error("Add category failed:", e);
+    showOptionError("category", "Couldn't save this category — try again.");
+  }
+}
+
+async function addCustomConcept() {
+  const input = document.getElementById("new-concept-value");
+  const value = input.value.trim();
+  const cat = state.settingsConceptCategory || allCategories()[0] || "";
+  showOptionError("concept", "");
+  if (!cat) { showOptionError("concept", "Choose a category first."); return; }
+  if (!value) { showOptionError("concept", "Enter a concept name."); return; }
+  if (allConceptsFor(cat).some((c) => c.toLowerCase() === value.toLowerCase())) { showOptionError("concept", "That concept already exists for this category."); return; }
+
+  const row = { id: uid("OPT"), option_type: "concept", value, parent_category: cat };
+  try {
+    const { error } = await sb.from("plud_custom_options").insert(row);
+    if (error) throw error;
+    state.customConcepts = [...state.customConcepts, row];
+    input.value = "";
+    document.getElementById("concepts-chip-row").innerHTML = conceptsChipsHtml();
+  } catch (e) {
+    console.error("Add concept failed:", e);
+    showOptionError("concept", "Couldn't save this concept — try again.");
+  }
+}
+
+async function addCustomStatus() {
+  const input = document.getElementById("new-status-value");
+  const value = input.value.trim();
+  showOptionError("status", "");
+  if (!value) { showOptionError("status", "Enter a status name."); return; }
+  if (allStatuses().some((s) => s.toLowerCase() === value.toLowerCase())) { showOptionError("status", "That status already exists."); return; }
+
+  const row = { id: uid("OPT"), option_type: "status", value, parent_category: "" };
+  try {
+    const { error } = await sb.from("plud_custom_options").insert(row);
+    if (error) throw error;
+    state.customStatuses = [...state.customStatuses, row];
+    input.value = "";
+    render(); // status list also drives the pipeline chart and filters elsewhere
+  } catch (e) {
+    console.error("Add status failed:", e);
+    showOptionError("status", "Couldn't save this status — try again.");
+  }
+}
+
+async function deleteCustomOption(id) {
+  const opt = [...state.customCategories, ...state.customConcepts, ...state.customStatuses].find((o) => o.id === id);
+  if (!opt) return;
+  state.customCategories = state.customCategories.filter((o) => o.id !== id);
+  state.customConcepts = state.customConcepts.filter((o) => o.id !== id);
+  state.customStatuses = state.customStatuses.filter((o) => o.id !== id);
+  render();
+  try {
+    const { error } = await sb.from("plud_custom_options").delete().eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    console.error("Delete option failed:", e);
+  }
+}
+
 
 /* ---------------------------------------------------------------------- */
 /* Maintenance                                                             */

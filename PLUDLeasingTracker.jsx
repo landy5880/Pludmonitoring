@@ -307,11 +307,11 @@ function Field({ label, children }) {
 
 const inputCls = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
-function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
+function TenantModal({ initial, onClose, onSave, existingUnitsByProperty, categoryOptions, conceptOptionsFor, statusOptions }) {
   const [form, setForm] = useState(
     initial || {
       dateInquired: new Date().toISOString().slice(0, 10),
-      brand: "", category: CATEGORIES[0], concept: "",
+      brand: "", category: categoryOptions[0], concept: "",
       contact: "", mobile: "", email: "", sqm: "",
       property: "", unit: "", remarks: "", unitViewing: "", foodTasting: "",
       status: "Inquired",
@@ -319,7 +319,7 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
   );
   const [error, setError] = useState("");
 
-  const concepts = CATEGORY_CONCEPTS[form.category] || [];
+  const concepts = conceptOptionsFor(form.category);
   const units = existingUnitsByProperty[form.property] || [];
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
@@ -361,7 +361,7 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
             </Field>
             <Field label="Status">
               <select className={inputCls} value={form.status} onChange={(e) => set({ status: e.target.value })}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </Field>
           </div>
@@ -373,7 +373,7 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Category">
               <select className={inputCls} value={form.category} onChange={(e) => set({ category: e.target.value, concept: "" })}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
             <Field label="Concept">
@@ -631,6 +631,112 @@ function ListingModal({ listing, isNew, onClose, onSave, existingListings }) {
   );
 }
 
+function ChipOptionPanel({ title, fixedOptions, customOptions, onAdd, onDelete, error, placeholder, note }) {
+  const [value, setValue] = useState("");
+
+  const handleAdd = async () => {
+    const ok = await onAdd(value);
+    if (ok) setValue("");
+  };
+
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">{title}</h2>
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {fixedOptions.map((c) => (
+          <span key={c} className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700">{c}</span>
+        ))}
+        {customOptions.map((o) => (
+          <span key={o.id} className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 py-1.5 pl-3 pr-1.5 text-xs font-medium text-stone-700">
+            {o.value}
+            <button onClick={() => onDelete(o.id)} className="flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-stone-600 hover:bg-rose-100 hover:text-rose-700" aria-label="Remove">
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+      </div>
+      {error && (
+        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className={`${inputCls} w-auto flex-1`}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+        />
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <Plus size={15} /> Add
+        </button>
+      </div>
+      {note && <p className="mt-2 text-xs text-stone-500">{note}</p>}
+    </section>
+  );
+}
+
+function ConceptOptionsPanel({ categories, conceptOptionsFor, customConcepts, selectedCategory, onSelectCategory, onAdd, onDelete, error }) {
+  const [value, setValue] = useState("");
+  const cat = selectedCategory || categories[0] || "";
+  const fixed = CATEGORY_CONCEPTS[cat] || [];
+  const custom = customConcepts.filter((o) => o.parent_category === cat);
+
+  const handleAdd = async () => {
+    const ok = await onAdd(cat, value);
+    if (ok) setValue("");
+  };
+
+  return (
+    <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Concepts</h2>
+      <div className="mb-2.5 flex items-center gap-2 text-xs text-stone-600">
+        For category:
+        <select className={`${inputCls} w-auto`} value={cat} onChange={(e) => onSelectCategory(e.target.value)}>
+          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {fixed.length === 0 && custom.length === 0 ? (
+          <p className="py-1 text-sm text-stone-500">No concepts yet for this category.</p>
+        ) : (
+          <>
+            {fixed.map((c) => (
+              <span key={c} className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700">{c}</span>
+            ))}
+            {custom.map((o) => (
+              <span key={o.id} className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 py-1.5 pl-3 pr-1.5 text-xs font-medium text-stone-700">
+                {o.value}
+                <button onClick={() => onDelete(o.id)} className="flex h-4 w-4 items-center justify-center rounded-full bg-stone-200 text-stone-600 hover:bg-rose-100 hover:text-rose-700" aria-label="Remove">
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
+          </>
+        )}
+      </div>
+      {error && (
+        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className={`${inputCls} w-auto flex-1`}
+          placeholder="New concept name"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+        />
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <Plus size={15} /> Add concept
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function UserModal({ onClose, onSave }) {
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
@@ -804,6 +910,11 @@ export default function PLUDLeasingTracker() {
   const [tab, setTab] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
+  const [customCategories, setCustomCategories] = useState([]);
+  const [customConcepts, setCustomConcepts] = useState([]);
+  const [customStatuses, setCustomStatuses] = useState([]);
+  const [settingsConceptCategory, setSettingsConceptCategory] = useState("");
+  const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
   const [userLoading, setUserLoading] = useState(true);
   const [tenants, setTenants] = useState([]);
   const [listings, setListings] = useState([]);
@@ -887,11 +998,12 @@ export default function PLUDLeasingTracker() {
     let cancelled = false;
     (async () => {
       try {
-        const [tenantRows, listingRows, userRows, maintRows] = await Promise.all([
+        const [tenantRows, listingRows, userRows, maintRows, optionRows] = await Promise.all([
           sbSelect("plud_tenants"),
           sbSelect("plud_listings"),
           sbRequest("plud_users?select=id,username,name,role,created_at&order=created_at"),
           sbSelect("plud_maintenance"),
+          sbRequest("plud_custom_options?select=*&order=created_at"),
         ]);
         if (cancelled) return;
         if (tenantRows.length === 0 && listingRows.length === 0) {
@@ -911,6 +1023,9 @@ export default function PLUDLeasingTracker() {
         } else {
           setMaintenance(maintRows.map(maintRowToState));
         }
+        setCustomCategories(optionRows.filter((o) => o.option_type === "category"));
+        setCustomConcepts(optionRows.filter((o) => o.option_type === "concept"));
+        setCustomStatuses(optionRows.filter((o) => o.option_type === "status"));
         setUsers(userRows);
         setSaveError("");
       } catch (e) {
@@ -919,6 +1034,9 @@ export default function PLUDLeasingTracker() {
         setListings(SEED_LISTINGS);
         setMaintenance(SEED_MAINTENANCE);
         setUsers([]);
+        setCustomCategories([]);
+        setCustomConcepts([]);
+        setCustomStatuses([]);
         setSaveError("Couldn't reach the database — showing local sample data, changes won't be saved.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -948,6 +1066,22 @@ export default function PLUDLeasingTracker() {
     }
   }, [users]);
 
+  const allCategoryOptions = useMemo(() => {
+    const extra = customCategories.map((o) => o.value).filter((v) => !CATEGORIES.includes(v));
+    return [...CATEGORIES, ...extra];
+  }, [customCategories]);
+
+  const allStatusOptions = useMemo(() => {
+    const extra = customStatuses.map((o) => o.value).filter((v) => !STATUSES.includes(v));
+    return [...STATUSES, ...extra];
+  }, [customStatuses]);
+
+  const conceptOptionsFor = useCallback((category) => {
+    const base = CATEGORY_CONCEPTS[category] || [];
+    const extra = customConcepts.filter((o) => o.parent_category === category).map((o) => o.value).filter((v) => !base.includes(v));
+    return [...base, ...extra];
+  }, [customConcepts]);
+
   const deleteUser = useCallback(async (id) => {
     const wasSelf = user && user.id === id;
     setUsers((prev) => prev.filter((u) => u.id !== id));
@@ -959,6 +1093,78 @@ export default function PLUDLeasingTracker() {
     }
     if (wasSelf) await handleLogout();
   }, [user, handleLogout]);
+
+  const addCustomCategory = useCallback(async (value) => {
+    setOptionError((e) => ({ ...e, category: "" }));
+    const v = value.trim();
+    if (!v) { setOptionError((e) => ({ ...e, category: "Enter a category name." })); return false; }
+    if (allCategoryOptions.some((c) => c.toLowerCase() === v.toLowerCase())) {
+      setOptionError((e) => ({ ...e, category: "That category already exists." }));
+      return false;
+    }
+    const row = { id: uid("OPT"), option_type: "category", value: v, parent_category: "" };
+    try {
+      await sbRequest("plud_custom_options", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+      setCustomCategories((prev) => [...prev, row]);
+      return true;
+    } catch (e) {
+      console.error("Add category failed:", e);
+      setOptionError((err) => ({ ...err, category: "Couldn't save this category — try again." }));
+      return false;
+    }
+  }, [allCategoryOptions]);
+
+  const addCustomConcept = useCallback(async (category, value) => {
+    setOptionError((e) => ({ ...e, concept: "" }));
+    const v = value.trim();
+    if (!category) { setOptionError((e) => ({ ...e, concept: "Choose a category first." })); return false; }
+    if (!v) { setOptionError((e) => ({ ...e, concept: "Enter a concept name." })); return false; }
+    if (conceptOptionsFor(category).some((c) => c.toLowerCase() === v.toLowerCase())) {
+      setOptionError((e) => ({ ...e, concept: "That concept already exists for this category." }));
+      return false;
+    }
+    const row = { id: uid("OPT"), option_type: "concept", value: v, parent_category: category };
+    try {
+      await sbRequest("plud_custom_options", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+      setCustomConcepts((prev) => [...prev, row]);
+      return true;
+    } catch (e) {
+      console.error("Add concept failed:", e);
+      setOptionError((err) => ({ ...err, concept: "Couldn't save this concept — try again." }));
+      return false;
+    }
+  }, [conceptOptionsFor]);
+
+  const addCustomStatus = useCallback(async (value) => {
+    setOptionError((e) => ({ ...e, status: "" }));
+    const v = value.trim();
+    if (!v) { setOptionError((e) => ({ ...e, status: "Enter a status name." })); return false; }
+    if (allStatusOptions.some((s) => s.toLowerCase() === v.toLowerCase())) {
+      setOptionError((e) => ({ ...e, status: "That status already exists." }));
+      return false;
+    }
+    const row = { id: uid("OPT"), option_type: "status", value: v, parent_category: "" };
+    try {
+      await sbRequest("plud_custom_options", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+      setCustomStatuses((prev) => [...prev, row]);
+      return true;
+    } catch (e) {
+      console.error("Add status failed:", e);
+      setOptionError((err) => ({ ...err, status: "Couldn't save this status — try again." }));
+      return false;
+    }
+  }, [allStatusOptions]);
+
+  const deleteCustomOption = useCallback(async (id) => {
+    setCustomCategories((prev) => prev.filter((o) => o.id !== id));
+    setCustomConcepts((prev) => prev.filter((o) => o.id !== id));
+    setCustomStatuses((prev) => prev.filter((o) => o.id !== id));
+    try {
+      await sbDelete("plud_custom_options", id);
+    } catch (e) {
+      console.error("Delete option failed:", e);
+    }
+  }, []);
 
   const unitsByProperty = useMemo(() => {
     const map = {};
@@ -1038,7 +1244,7 @@ export default function PLUDLeasingTracker() {
     const occupied = listingsComputed.filter((l) => l.kind === "occupied").length;
     const occupancyRate = totalUnits ? occupied / totalUnits : 0;
 
-    const byStage = STATUSES.map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
+    const byStage = allStatusOptions.map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
 
     const byProperty = PROPERTIES.filter((p) => listingsComputed.some((l) => l.property === p)).map((p) => {
       const units = listingsComputed.filter((l) => l.property === p);
@@ -1103,7 +1309,7 @@ export default function PLUDLeasingTracker() {
       byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
       maintTotal: maintenance.length, maintOpen, maintInProgress, maintUrgent, maintNeedsAttention,
     };
-  }, [tenants, listingsComputed, maintenance]);
+  }, [tenants, listingsComputed, maintenance, allStatusOptions]);
 
   const filteredTenants = useMemo(() => {
     return tenants
@@ -1460,7 +1666,7 @@ export default function PLUDLeasingTracker() {
               </div>
               <select className={`${inputCls} w-auto`} value={tenantStatusFilter} onChange={(e) => setTenantStatusFilter(e.target.value)}>
                 <option value="All">All statuses</option>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {allStatusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
               <select className={`${inputCls} w-auto`} value={tenantPropertyFilter} onChange={(e) => setTenantPropertyFilter(e.target.value)}>
                 <option value="All">All properties</option>
@@ -1906,6 +2112,38 @@ export default function PLUDLeasingTracker() {
               <p className="mt-2.5 text-xs text-stone-500">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
             </section>
 
+            <ChipOptionPanel
+              title="Categories"
+              fixedOptions={CATEGORIES}
+              customOptions={customCategories}
+              onAdd={addCustomCategory}
+              onDelete={deleteCustomOption}
+              error={optionError.category}
+              placeholder="New category name"
+            />
+
+            <ConceptOptionsPanel
+              categories={allCategoryOptions}
+              conceptOptionsFor={conceptOptionsFor}
+              customConcepts={customConcepts}
+              selectedCategory={settingsConceptCategory}
+              onSelectCategory={setSettingsConceptCategory}
+              onAdd={addCustomConcept}
+              onDelete={deleteCustomOption}
+              error={optionError.concept}
+            />
+
+            <ChipOptionPanel
+              title="Statuses"
+              fixedOptions={STATUSES}
+              customOptions={customStatuses}
+              onAdd={addCustomStatus}
+              onDelete={deleteCustomOption}
+              error={optionError.status}
+              placeholder="New status name"
+              note={'New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.'}
+            />
+
             <section className="rounded-lg border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Users</h2>
               {users.length === 0 ? (
@@ -1960,6 +2198,9 @@ export default function PLUDLeasingTracker() {
           onClose={() => { setEditingTenant(null); setShowNewTenant(false); }}
           onSave={saveTenant}
           existingUnitsByProperty={unitsByProperty}
+          categoryOptions={allCategoryOptions}
+          conceptOptionsFor={conceptOptionsFor}
+          statusOptions={allStatusOptions}
         />
       )}
 
