@@ -1078,12 +1078,30 @@ export default function PLUDLeasingTracker() {
     });
     upcoming.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
 
+    const maintOpen = maintenance.filter((m) => m.status === "Open").length;
+    const maintInProgress = maintenance.filter((m) => m.status === "In Progress").length;
+    const maintUrgent = maintenance.filter((m) => (m.status === "Open" || m.status === "In Progress") && m.priority === "Urgent").length;
+    const maintNeedsAttention = maintenance
+      .filter((m) => m.status === "Open" || m.status === "In Progress")
+      .map((m) => {
+        const dMs = m.reportedDate ? new Date(m.reportedDate + "T00:00:00").getTime() : todayMs;
+        const daysOpen = Math.max(0, Math.floor((todayMs - dMs) / 86400000));
+        return { ...m, daysOpen };
+      })
+      .sort((a, b) => {
+        const rank = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+        if (rank[a.priority] !== rank[b.priority]) return rank[a.priority] - rank[b.priority];
+        return b.daysOpen - a.daysOpen;
+      })
+      .slice(0, 6);
+
     return {
       totalInquiries, awarded, lost, active, conversionRate,
       totalUnits, available, occupied, occupancyRate,
       byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
+      maintTotal: maintenance.length, maintOpen, maintInProgress, maintUrgent, maintNeedsAttention,
     };
-  }, [tenants, listingsComputed]);
+  }, [tenants, listingsComputed, maintenance]);
 
   const filteredTenants = useMemo(() => {
     return tenants
@@ -1359,6 +1377,41 @@ export default function PLUDLeasingTracker() {
                 )}
               </section>
             </div>
+
+            <section>
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Maintenance</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard label="Total requests" value={stats.maintTotal} />
+                <StatCard label="Open" value={stats.maintOpen} accent="text-rose-700" />
+                <StatCard label="In progress" value={stats.maintInProgress} accent="text-blue-700" />
+                <StatCard label="Urgent priority" value={stats.maintUrgent} accent="text-rose-700" />
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Needs attention (maintenance)</h2>
+              {stats.maintNeedsAttention.length === 0 ? (
+                <p className="py-6 text-center text-sm text-stone-500">No open or in-progress maintenance requests.</p>
+              ) : (
+                <div className="divide-y divide-stone-100">
+                  {stats.maintNeedsAttention.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setTab("maintenance"); setEditingMaint(m); }}
+                      className="flex w-full items-center justify-between gap-4 py-2.5 text-left hover:bg-stone-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-stone-900">{m.issue || "(no description)"}</p>
+                        <p className="mt-0.5 truncate text-xs text-stone-500">
+                          {m.property}{m.unit ? ` · ${m.unit}` : ""} · {m.daysOpen}d open
+                        </p>
+                      </div>
+                      <Badge status={m.priority} styleMap={MAINT_PRIORITY_STYLE} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section className="rounded-lg border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Active pipeline, most recent first</h2>

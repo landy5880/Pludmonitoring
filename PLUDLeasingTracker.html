@@ -667,10 +667,29 @@ function computeStats() {
   });
   upcoming.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
 
+  const maint = state.maintenance;
+  const maintOpen = maint.filter((m) => m.status === "Open").length;
+  const maintInProgress = maint.filter((m) => m.status === "In Progress").length;
+  const maintUrgent = maint.filter((m) => (m.status === "Open" || m.status === "In Progress") && m.priority === "Urgent").length;
+  const maintNeedsAttention = maint
+    .filter((m) => m.status === "Open" || m.status === "In Progress")
+    .map((m) => {
+      const dMs = m.reportedDate ? new Date(m.reportedDate + "T00:00:00").getTime() : todayMs;
+      const daysOpen = Math.max(0, Math.floor((todayMs - dMs) / 86400000));
+      return { ...m, daysOpen };
+    })
+    .sort((a, b) => {
+      const rank = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+      if (rank[a.priority] !== rank[b.priority]) return rank[a.priority] - rank[b.priority];
+      return b.daysOpen - a.daysOpen;
+    })
+    .slice(0, 6);
+
   return {
     totalInquiries, awarded, lost, active, conversionRate,
     totalUnits, available, occupied, occupancyRate,
     byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
+    maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintNeedsAttention,
   };
 }
 
@@ -938,6 +957,31 @@ function dashboardHtml() {
       </section>
     </div>
 
+    <section>
+      <h2 class="section-title">Maintenance</h2>
+      <div class="stat-grid">
+        <div class="stat-card"><p class="stat-label">Total requests</p><p class="stat-value">${s.maintTotal}</p></div>
+        <div class="stat-card"><p class="stat-label">Open</p><p class="stat-value rose">${s.maintOpen}</p></div>
+        <div class="stat-card"><p class="stat-label">In progress</p><p class="stat-value blue">${s.maintInProgress}</p></div>
+        <div class="stat-card"><p class="stat-label">Urgent priority</p><p class="stat-value rose">${s.maintUrgent}</p></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Needs attention (maintenance)</h2>
+      ${s.maintNeedsAttention.length === 0 ? `<p class="empty-note">No open or in-progress maintenance requests.</p>` : `
+        <div>
+          ${s.maintNeedsAttention.map((m) => `
+            <button class="pipeline-item" onclick="goToMaintenance('${m.id}')">
+              <div class="pipeline-main" style="min-width:0;">
+                <p>${esc(m.issue || "(no description)")}</p>
+                <p class="pipeline-sub">${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""} · ${m.daysOpen}d open</p>
+              </div>
+              ${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}
+            </button>`).join("")}
+        </div>`}
+    </section>
+
     <section class="panel">
       <h2 class="section-title">Active pipeline, most recent first</h2>
       ${s.pipeline.length === 0 ? `<p class="empty-note">No active inquiries right now.</p>` : `
@@ -953,6 +997,11 @@ function dashboardHtml() {
         </div>`}
     </section>
   </div>`;
+}
+
+function goToMaintenance(id) {
+  state.tab = "maintenance";
+  openEditMaint(id);
 }
 
 /* ---------------------------------------------------------------------- */
