@@ -543,21 +543,63 @@ function MaintModal({ initial, onClose, onSave, existingUnitsByProperty }) {
   );
 }
 
-function ListingModal({ listing, onClose, onSave }) {
+function ListingModal({ listing, isNew, onClose, onSave, existingListings }) {
+  const [property, setProperty] = useState(listing.property || "");
+  const [unit, setUnit] = useState(listing.unit || "");
   const [floorArea, setFloorArea] = useState(listing.floorArea ?? "");
   const [askingRate, setAskingRate] = useState(listing.askingRate ?? "");
   const [notes, setNotes] = useState(listing.notes ?? "");
+  const [error, setError] = useState("");
+
+  const handleSave = () => {
+    if (isNew) {
+      if (!property) { setError("Select a property."); return; }
+      if (!unit.trim()) { setError("Enter a unit name."); return; }
+      if (existingListings.some((p) => p.property === property && p.unit.toLowerCase() === unit.trim().toLowerCase())) {
+        setError("That property/unit combination already exists.");
+        return;
+      }
+    }
+    onSave({
+      ...listing,
+      id: listing.id || uid("L"),
+      property, unit: unit.trim() || unit,
+      floorArea: floorArea === "" ? "" : Number(floorArea),
+      askingRate: askingRate === "" ? "" : Number(askingRate),
+      notes,
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
       <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
-          <h2 className="font-serif text-base font-semibold text-stone-900">{listing.property} · {listing.unit}</h2>
+          <h2 className="font-serif text-base font-semibold text-stone-900">
+            {isNew ? "Add listing" : `${listing.property} · ${listing.unit}`}
+          </h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
             <X size={18} />
           </button>
         </div>
         <div className="space-y-4 px-6 py-5">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+          {isNew && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Property">
+                <select className={inputCls} value={property} onChange={(e) => { setProperty(e.target.value); setError(""); }}>
+                  <option value="">Select property</option>
+                  {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </Field>
+              <Field label="Unit">
+                <input className={inputCls} placeholder="e.g. V601" value={unit} onChange={(e) => { setUnit(e.target.value); setError(""); }} />
+              </Field>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Floor area (sqm)">
               <input type="number" min="0" className={inputCls} value={floorArea} onChange={(e) => setFloorArea(e.target.value)} />
@@ -579,11 +621,8 @@ function ListingModal({ listing, onClose, onSave }) {
           <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
-          <button
-            onClick={() => onSave({ ...listing, floorArea: floorArea === "" ? "" : Number(floorArea), askingRate: askingRate === "" ? "" : Number(askingRate), notes })}
-            className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
-          >
-            Save changes
+          <button onClick={handleSave} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800">
+            {isNew ? "Add listing" : "Save changes"}
           </button>
         </div>
       </div>
@@ -774,6 +813,7 @@ export default function PLUDLeasingTracker() {
   const [showNewTenant, setShowNewTenant] = useState(false);
   const [deletingTenantId, setDeletingTenantId] = useState(null);
   const [editingListing, setEditingListing] = useState(null);
+  const [showNewListing, setShowNewListing] = useState(false);
 
   const [tenantSearch, setTenantSearch] = useState("");
   const [tenantStatusFilter, setTenantStatusFilter] = useState("All");
@@ -953,8 +993,12 @@ export default function PLUDLeasingTracker() {
   }, []);
 
   const saveListing = useCallback((l) => {
-    setListings((prev) => prev.map((p) => (p.id === l.id ? l : p)));
+    setListings((prev) => {
+      const exists = prev.some((p) => p.id === l.id);
+      return exists ? prev.map((p) => (p.id === l.id ? l : p)) : [...prev, l];
+    });
     setEditingListing(null);
+    setShowNewListing(false);
     sbUpsert("plud_listings", [listingStateToRow(l)])
       .then(() => setSaveError(""))
       .catch((e) => { console.error("Supabase save (listing) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
@@ -1428,6 +1472,14 @@ export default function PLUDLeasingTracker() {
 
         {tab === "listings" && (
           <div className="space-y-6">
+            <div className="flex items-center justify-end">
+              <button
+                onClick={() => setShowNewListing(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800"
+              >
+                <Plus size={16} /> Add listing
+              </button>
+            </div>
             {PROPERTIES.filter((p) => listingsComputed.some((l) => l.property === p)).map((property) => (
               <section key={property}>
                 <h2 className="mb-2 flex items-center gap-2 font-serif text-sm font-semibold text-stone-900">
@@ -1753,8 +1805,14 @@ export default function PLUDLeasingTracker() {
                 >
                   <Plus size={16} /> Add tenant
                 </button>
+                <button
+                  onClick={() => setShowNewListing(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  <Plus size={16} /> Add listing
+                </button>
               </div>
-              <p className="mt-2.5 text-xs text-stone-500">Opens the same tenant inquiry form used on the Prospective tenants tab.</p>
+              <p className="mt-2.5 text-xs text-stone-500">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
             </section>
 
             <section className="rounded-lg border border-stone-200 bg-white p-4">
@@ -1814,8 +1872,14 @@ export default function PLUDLeasingTracker() {
         />
       )}
 
-      {editingListing && (
-        <ListingModal listing={editingListing} onClose={() => setEditingListing(null)} onSave={saveListing} />
+      {(editingListing || showNewListing) && (
+        <ListingModal
+          listing={editingListing || { property: "", unit: "", floorArea: "", askingRate: "", notes: "" }}
+          isNew={showNewListing}
+          existingListings={listings}
+          onClose={() => { setEditingListing(null); setShowNewListing(false); }}
+          onSave={saveListing}
+        />
       )}
 
       {deletingTenantId && (

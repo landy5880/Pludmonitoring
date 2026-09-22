@@ -416,6 +416,8 @@ const state = {
   showNewTenant: false,
   deletingTenantId: null,
   editingListing: null,
+  showNewListing: false,
+  listingFormError: "",
   tenantSearch: "",
   tenantStatusFilter: "All",
   tenantPropertyFilter: "All",
@@ -820,7 +822,7 @@ function appShellHtml() {
     </div>
   </div>
   ${(state.showNewTenant || state.editingTenant) ? tenantModalHtml() : ""}
-  ${state.editingListing ? listingModalHtml() : ""}
+  ${(state.editingListing || state.showNewListing) ? listingModalHtml() : ""}
   ${state.deletingTenantId ? confirmDialogHtml() : ""}
   ${state.showNewUser ? userModalHtml() : ""}
   ${state.deletingUserId ? confirmDeleteUserDialogHtml() : ""}
@@ -1041,6 +1043,9 @@ function listingsTabHtml() {
   const properties = PROPERTIES.filter((p) => lc.some((l) => l.property === p));
   return `
   <div class="stack">
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-primary" onclick="openNewListing()">${icon("plus", 16)} Add listing</button>
+    </div>
     ${properties.map((property) => `
       <section class="property-block">
         <h2 class="property-heading">${icon("mappin", 14)} ${esc(property)}</h2>
@@ -1273,22 +1278,38 @@ function confirmDialogHtml() {
 /* ---------------------------------------------------------------------- */
 /* Listing modal                                                          */
 /* ---------------------------------------------------------------------- */
+function openNewListing() { state.showNewListing = true; state.editingListing = null; state.listingFormError = ""; render(); }
 function openEditListing(id) {
   state.editingListing = state.listings.find((l) => l.id === id) || null;
+  state.showNewListing = false;
+  state.listingFormError = "";
   render();
 }
-function closeListingModal() { state.editingListing = null; render(); }
+function closeListingModal() { state.editingListing = null; state.showNewListing = false; state.listingFormError = ""; render(); }
 
 function listingModalHtml() {
-  const l = state.editingListing;
+  const isNew = state.showNewListing;
+  const l = state.editingListing || { property: "", unit: "", floorArea: "", askingRate: "", notes: "" };
+
   return `
   <div class="overlay">
     <div class="modal narrow">
       <div class="modal-header">
-        <h2>${esc(l.property)} · ${esc(l.unit)}</h2>
+        <h2>${isNew ? "Add listing" : `${esc(l.property)} · ${esc(l.unit)}`}</h2>
         <button class="icon-btn" onclick="closeListingModal()" aria-label="Close">${icon("x", 18)}</button>
       </div>
       <div class="modal-body">
+        <div id="l-error">${state.listingFormError ? `<div class="form-error">${icon("alert", 16)} ${esc(state.listingFormError)}</div>` : ""}</div>
+        ${isNew ? `
+        <div class="grid-2">
+          <label><span class="field-label">Property</span>
+            <select id="l-property" class="input">
+              <option value="">Select property</option>
+              ${PROPERTIES.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join("")}
+            </select>
+          </label>
+          <label><span class="field-label">Unit</span><input id="l-unit" class="input" placeholder="e.g. V601" /></label>
+        </div>` : ""}
         <div class="grid-2">
           <label><span class="field-label">Floor area (sqm)</span><input type="number" min="0" id="l-floorArea" class="input" value="${esc(l.floorArea)}" oninput="updateListingEstimate()" /></label>
           <label><span class="field-label">Asking rate (PHP/sqm)</span><input type="number" min="0" id="l-askingRate" class="input" value="${esc(l.askingRate)}" oninput="updateListingEstimate()" /></label>
@@ -1298,7 +1319,7 @@ function listingModalHtml() {
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeListingModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveListing()">Save changes</button>
+        <button class="btn btn-primary" onclick="saveListing()">${isNew ? "Add listing" : "Save changes"}</button>
       </div>
     </div>
   </div>`;
@@ -1314,6 +1335,40 @@ function saveListing() {
   const fa = document.getElementById("l-floorArea").value;
   const ar = document.getElementById("l-askingRate").value;
   const notes = document.getElementById("l-notes").value;
+
+  const showErr = (msg) => {
+    state.listingFormError = msg;
+    document.getElementById("l-error").innerHTML = `<div class="form-error">${icon("alert", 16)} ${esc(msg)}</div>`;
+  };
+
+  if (state.showNewListing) {
+    const property = document.getElementById("l-property").value;
+    const unit = document.getElementById("l-unit").value.trim();
+    if (!property) { showErr("Select a property."); return; }
+    if (!unit) { showErr("Enter a unit name."); return; }
+    if (state.listings.some((p) => p.property === property && p.unit.toLowerCase() === unit.toLowerCase())) {
+      showErr("That property/unit combination already exists.");
+      return;
+    }
+    const record = { id: uid("L"), property, unit, floorArea: fa === "" ? "" : Number(fa), askingRate: ar === "" ? "" : Number(ar), notes };
+    state.listings = [...state.listings, record];
+    state.showNewListing = false;
+    state.listingFormError = "";
+    render();
+
+    sb.from("plud_listings").upsert(listingStateToRow(record)).then(({ error }) => {
+      if (error) {
+        console.error("Supabase save (listing) failed:", error);
+        state.saveError = "Changes aren't saving to the database right now.";
+      } else {
+        state.saveError = "";
+      }
+      const el = document.getElementById("save-banner");
+      if (el) el.outerHTML = bannerHtml();
+    });
+    return;
+  }
+
   const id = state.editingListing.id;
   let updated = null;
   state.listings = state.listings.map((p) => {
@@ -1567,8 +1622,9 @@ function settingsHtml() {
       <h2 class="section-title">Quick actions</h2>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
         <button class="btn btn-outline" onclick="openNewTenant()">${icon("plus", 16)} Add tenant</button>
+        <button class="btn btn-outline" onclick="openNewListing()">${icon("plus", 16)} Add listing</button>
       </div>
-      <p style="margin:10px 0 0;font-size:12px;color:var(--stone-500);">Opens the same tenant inquiry form used on the Prospective tenants tab.</p>
+      <p style="margin:10px 0 0;font-size:12px;color:var(--stone-500);">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
     </section>
 
     <section class="panel">
