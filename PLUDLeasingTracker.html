@@ -159,13 +159,17 @@
   .row-actions{display:flex; justify-content:flex-end; gap:4px;}
   .link-count{background:none; border:none; padding:0; font-size:14px; font-weight:600; color:var(--teal-700); cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
   .link-count:hover{color:var(--teal-800);}
-  .chip{display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:5px 6px 5px 12px; font-size:12.5px; font-weight:500; background:var(--stone-100); color:var(--stone-700); border:1px solid var(--stone-200);}
-  .chip.fixed{padding:5px 12px;}
-  .chip button{border:none; background:var(--stone-200); color:var(--stone-600); width:16px; height:16px; border-radius:999px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; font-size:11px; line-height:1;}
-  .chip button:hover{background:var(--rose-100); color:var(--rose-700);}
-  .chip-row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
-  .add-option-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+  .add-option-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px;}
   .add-option-row .input{width:auto; flex:1; min-width:140px;}
+  .option-list{border:1px solid var(--stone-200); border-radius:8px; max-height:230px; overflow-y:auto;}
+  .option-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-bottom:1px solid var(--stone-100); font-size:14px;}
+  .option-row:last-child{border-bottom:none;}
+  .option-row .option-label{color:var(--stone-800); font-weight:500;}
+  .option-row .option-parent{color:var(--stone-500); font-weight:400;}
+  .option-row .builtin-tag{font-size:11px; color:var(--stone-400); margin-left:6px; font-weight:400;}
+  .option-remove{flex-shrink:0; font-size:12.5px; color:var(--rose-600); text-decoration:underline; text-underline-offset:2px; background:none; border:none; cursor:pointer; padding:0;}
+  .option-remove:hover{color:var(--rose-700);}
+  .option-remove.disabled{color:var(--stone-300); cursor:default; text-decoration:none;}
   .btn-xs{display:inline-flex; align-items:center; gap:4px; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:500; border:1px solid var(--teal-700); color:var(--teal-700); background:#fff; cursor:pointer; white-space:nowrap;}
   .btn-xs:hover{background:var(--amber-50);}
   .empty-state{border:1px dashed var(--stone-300); background:#fff; border-radius:8px; padding:56px 16px; text-align:center;}
@@ -220,6 +224,11 @@
   .report-type-tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;}
   .report-type-tab{border:1px solid var(--stone-300); background:#fff; color:var(--stone-600); border-radius:999px; padding:6px 14px; font-size:13px; font-weight:500; cursor:pointer;}
   .report-type-tab.active{background:var(--teal-700); border-color:var(--teal-700); color:#fff;}
+  .report-type-list{border:1px solid var(--stone-200); border-radius:8px; overflow:hidden; margin-bottom:16px; max-width:300px;}
+  .report-type-row{display:block; width:100%; text-align:left; padding:11px 14px; border-bottom:1px solid var(--stone-100); font-size:14px; font-weight:500; color:var(--stone-700); background:#fff; border-left:3px solid transparent; cursor:pointer;}
+  .report-type-row:last-child{border-bottom:none;}
+  .report-type-row:hover{background:var(--stone-50);}
+  .report-type-row.active{background:var(--amber-50); border-left-color:var(--teal-700); color:var(--teal-800); font-weight:600;}
   .report-summary-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
   @media(min-width:640px){.report-summary-grid{grid-template-columns:repeat(4,1fr);}}
 
@@ -1549,8 +1558,8 @@ function reportsTabHtml() {
       </div>
     </div>
 
-    <div class="report-type-tabs no-print">
-      ${REPORT_TYPES.map((r) => `<button class="report-type-tab ${type === r.id ? "active" : ""}" onclick="setReportType('${r.id}')">${r.label}</button>`).join("")}
+    <div class="report-type-list no-print">
+      ${REPORT_TYPES.map((r) => `<button class="report-type-row ${type === r.id ? "active" : ""}" onclick="setReportType('${r.id}')">${r.label}</button>`).join("")}
     </div>
 
     <div class="toolbar no-print">
@@ -1747,52 +1756,35 @@ function settingsHtml() {
 
     <section class="panel">
       <h2 class="section-title">Categories</h2>
-      <div class="add-option-row" style="margin-bottom:10px;">
-        <select id="category-select" class="input" style="width:auto;">
-          ${allCategories().map((c) => `<option value="${esc(c)}">${esc(c)}${CATEGORIES.includes(c) ? " (built-in)" : ""}</option>`).join("")}
-        </select>
-        <button class="btn btn-outline" onclick="deleteSelectedCategory()">${icon("trash", 14)} Delete</button>
-      </div>
       <div class="add-option-row">
-        <input id="new-category-value" class="input" placeholder="New category name" onkeydown="if(event.key==='Enter'){addCustomCategory();}" />
-        <button class="btn btn-primary" onclick="addCustomCategory()">${icon("plus", 15)} Save</button>
+        <input id="new-category-value" class="input" placeholder="Add category..." onkeydown="if(event.key==='Enter'){addCustomCategory();}" />
+        <button class="btn btn-primary" onclick="addCustomCategory()">Add</button>
       </div>
       <div id="option-error-category"></div>
+      <div id="category-list" class="option-list">${categoryListHtml()}</div>
     </section>
 
     <section class="panel">
       <h2 class="section-title">Concepts</h2>
-      <div class="add-option-row" style="margin-bottom:10px;">
-        <span style="font-size:12px;color:var(--stone-600);">For category:</span>
+      <div class="add-option-row">
         <select class="input" style="width:auto;" onchange="onSettingsConceptCategoryChange(this.value)">
           ${allCategories().map((c) => `<option value="${esc(c)}" ${((state.settingsConceptCategory || allCategories()[0]) === c) ? "selected" : ""}>${esc(c)}</option>`).join("")}
         </select>
-      </div>
-      <div class="add-option-row" style="margin-bottom:10px;">
-        <select id="concept-select" class="input" style="width:auto;">
-          ${allConceptsFor(state.settingsConceptCategory || allCategories()[0]).map((c) => `<option value="${esc(c)}">${esc(c)}${(CATEGORY_CONCEPTS[state.settingsConceptCategory || allCategories()[0]] || []).includes(c) ? " (built-in)" : ""}</option>`).join("")}
-        </select>
-        <button class="btn btn-outline" onclick="deleteSelectedConcept()">${icon("trash", 14)} Delete</button>
-      </div>
-      <div class="add-option-row">
-        <input id="new-concept-value" class="input" placeholder="New concept name" onkeydown="if(event.key==='Enter'){addCustomConcept();}" />
-        <button class="btn btn-primary" onclick="addCustomConcept()">${icon("plus", 15)} Save</button>
+        <input id="new-concept-value" class="input" placeholder="Add concept..." onkeydown="if(event.key==='Enter'){addCustomConcept();}" />
+        <button class="btn btn-primary" onclick="addCustomConcept()">Add</button>
       </div>
       <div id="option-error-concept"></div>
+      <div id="concept-list" class="option-list">${conceptListHtml()}</div>
     </section>
 
     <section class="panel">
       <h2 class="section-title">Statuses</h2>
-      <div class="add-option-row" style="margin-bottom:10px;">
-        <select id="status-select" class="input" style="width:auto;">
-          ${allStatuses().map((s) => `<option value="${esc(s)}">${esc(s)}${STATUSES.includes(s) ? " (built-in)" : ""}</option>`).join("")}
-        </select>
-        <button class="btn btn-outline" onclick="deleteSelectedStatus()">${icon("trash", 14)} Delete</button>
-      </div>
       <div class="add-option-row">
-        <input id="new-status-value" class="input" placeholder="New status name" onkeydown="if(event.key==='Enter'){addCustomStatus();}" />
-        <button class="btn btn-primary" onclick="addCustomStatus()">${icon("plus", 15)} Save</button>
+        <input id="new-status-value" class="input" placeholder="Add status..." onkeydown="if(event.key==='Enter'){addCustomStatus();}" />
+        <button class="btn btn-primary" onclick="addCustomStatus()">Add</button>
       </div>
+      <div id="option-error-status"></div>
+      <div id="status-list" class="option-list">${statusListHtml()}</div>
       <p style="margin:8px 0 0;font-size:12px;color:var(--stone-500);">New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.</p>
       <div id="option-error-status"></div>
     </section>
@@ -1922,60 +1914,67 @@ function confirmDeleteUserDialogHtml() {
 /* ---------------------------------------------------------------------- */
 /* Category / Concept / Status options                                     */
 /* ---------------------------------------------------------------------- */
-function categorySelectOptionsHtml() {
-  return allCategories().map((c) => `<option value="${esc(c)}">${esc(c)}${CATEGORIES.includes(c) ? " (built-in)" : ""}</option>`).join("");
+function categoryListHtml() {
+  const rows = CATEGORIES.map((c) => ({ value: c, builtin: true, id: null }))
+    .concat(state.customCategories.map((o) => ({ value: o.value, builtin: false, id: o.id })));
+  return rows.map((r) => `
+    <div class="option-row">
+      <span class="option-label">${esc(r.value)}${r.builtin ? `<span class="builtin-tag">(built-in)</span>` : ""}</span>
+      ${r.builtin
+        ? `<span class="option-remove disabled">Remove</span>`
+        : `<button class="option-remove" onclick="removeCategoryOption('${r.id}')">Remove</button>`}
+    </div>`).join("");
 }
-function conceptSelectOptionsHtml() {
+function conceptListHtml() {
   const cat = state.settingsConceptCategory || allCategories()[0] || "";
-  const builtIn = CATEGORY_CONCEPTS[cat] || [];
-  const list = allConceptsFor(cat);
-  if (list.length === 0) return `<option value="">No concepts yet</option>`;
-  return list.map((c) => `<option value="${esc(c)}">${esc(c)}${builtIn.includes(c) ? " (built-in)" : ""}</option>`).join("");
+  const rows = (CATEGORY_CONCEPTS[cat] || []).map((c) => ({ value: c, builtin: true, id: null }))
+    .concat(state.customConcepts.filter((o) => o.parent_category === cat).map((o) => ({ value: o.value, builtin: false, id: o.id })));
+  if (rows.length === 0) return `<p class="empty-note" style="padding:16px 0;">No concepts yet for this category.</p>`;
+  return rows.map((r) => `
+    <div class="option-row">
+      <span class="option-label">${esc(r.value)}${r.builtin ? `<span class="builtin-tag">(built-in)</span>` : ""}</span>
+      ${r.builtin
+        ? `<span class="option-remove disabled">Remove</span>`
+        : `<button class="option-remove" onclick="removeConceptOption('${r.id}')">Remove</button>`}
+    </div>`).join("");
 }
-function statusSelectOptionsHtml() {
-  return allStatuses().map((s) => `<option value="${esc(s)}">${esc(s)}${STATUSES.includes(s) ? " (built-in)" : ""}</option>`).join("");
+function statusListHtml() {
+  const rows = STATUSES.map((s) => ({ value: s, builtin: true, id: null }))
+    .concat(state.customStatuses.map((o) => ({ value: o.value, builtin: false, id: o.id })));
+  return rows.map((r) => `
+    <div class="option-row">
+      <span class="option-label">${esc(r.value)}${r.builtin ? `<span class="builtin-tag">(built-in)</span>` : ""}</span>
+      ${r.builtin
+        ? `<span class="option-remove disabled">Remove</span>`
+        : `<button class="option-remove" onclick="removeStatusOption('${r.id}')">Remove</button>`}
+    </div>`).join("");
 }
 
 function onSettingsConceptCategoryChange(value) {
   state.settingsConceptCategory = value;
-  const el = document.getElementById("concept-select");
-  if (el) el.innerHTML = conceptSelectOptionsHtml();
+  const el = document.getElementById("concept-list");
+  if (el) el.innerHTML = conceptListHtml();
 }
 
 function showOptionError(type, msg) {
   const el = document.getElementById(`option-error-${type}`);
-  if (el) el.innerHTML = msg ? `<div class="form-error" style="margin-top:8px;">${icon("alert", 16)} ${esc(msg)}</div>` : "";
+  if (el) el.innerHTML = msg ? `<div class="form-error" style="margin-bottom:10px;">${icon("alert", 16)} ${esc(msg)}</div>` : "";
 }
 
-async function deleteSelectedCategory() {
-  const value = document.getElementById("category-select").value;
+async function removeCategoryOption(id) {
   showOptionError("category", "");
-  if (CATEGORIES.includes(value)) { showOptionError("category", "Built-in categories can't be deleted."); return; }
-  const opt = state.customCategories.find((o) => o.value === value);
-  if (!opt) return;
-  await deleteCustomOption(opt.id);
-  document.getElementById("category-select").innerHTML = categorySelectOptionsHtml();
+  await deleteCustomOption(id);
+  document.getElementById("category-list").innerHTML = categoryListHtml();
 }
-
-async function deleteSelectedConcept() {
-  const value = document.getElementById("concept-select").value;
-  const cat = state.settingsConceptCategory || allCategories()[0] || "";
+async function removeConceptOption(id) {
   showOptionError("concept", "");
-  if ((CATEGORY_CONCEPTS[cat] || []).includes(value)) { showOptionError("concept", "Built-in concepts can't be deleted."); return; }
-  const opt = state.customConcepts.find((o) => o.value === value && o.parent_category === cat);
-  if (!opt) return;
-  await deleteCustomOption(opt.id);
-  document.getElementById("concept-select").innerHTML = conceptSelectOptionsHtml();
+  await deleteCustomOption(id);
+  document.getElementById("concept-list").innerHTML = conceptListHtml();
 }
-
-async function deleteSelectedStatus() {
-  const value = document.getElementById("status-select").value;
+async function removeStatusOption(id) {
   showOptionError("status", "");
-  if (STATUSES.includes(value)) { showOptionError("status", "Built-in statuses can't be deleted."); return; }
-  const opt = state.customStatuses.find((o) => o.value === value);
-  if (!opt) return;
-  await deleteCustomOption(opt.id);
-  document.getElementById("status-select").innerHTML = statusSelectOptionsHtml();
+  await deleteCustomOption(id);
+  document.getElementById("status-list").innerHTML = statusListHtml();
 }
 
 async function addCustomCategory() {
@@ -2013,7 +2012,7 @@ async function addCustomConcept() {
     if (error) throw error;
     state.customConcepts = [...state.customConcepts, row];
     input.value = "";
-    document.getElementById("concept-select").innerHTML = conceptSelectOptionsHtml();
+    document.getElementById("concept-list").innerHTML = conceptListHtml();
   } catch (e) {
     console.error("Add concept failed:", e);
     showOptionError("concept", "Couldn't save this concept — try again.");

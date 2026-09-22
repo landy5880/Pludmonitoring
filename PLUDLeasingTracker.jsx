@@ -631,18 +631,8 @@ function ListingModal({ listing, isNew, onClose, onSave, existingListings }) {
   );
 }
 
-function DropdownOptionPanel({ title, allOptions, fixedOptions, onAdd, onDelete, error, placeholder, note }) {
-  const [selected, setSelected] = useState(allOptions[0] || "");
+function ListOptionPanel({ title, fixedOptions, customOptions, onAdd, onDeleteId, error, placeholder, note }) {
   const [value, setValue] = useState("");
-
-  useEffect(() => {
-    if (!allOptions.includes(selected)) setSelected(allOptions[0] || "");
-  }, [allOptions]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleDelete = () => {
-    if (!selected) return;
-    onDelete(selected);
-  };
 
   const handleAdd = async () => {
     const ok = await onAdd(value);
@@ -653,21 +643,6 @@ function DropdownOptionPanel({ title, allOptions, fixedOptions, onAdd, onDelete,
     <section className="rounded-lg border border-stone-200 bg-white p-4">
       <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">{title}</h2>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        <select className={`${inputCls} w-auto`} value={selected} onChange={(e) => setSelected(e.target.value)}>
-          {allOptions.map((o) => (
-            <option key={o} value={o}>{o}{fixedOptions.includes(o) ? " (built-in)" : ""}</option>
-          ))}
-        </select>
-        <button onClick={handleDelete} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
-          <Trash2 size={14} /> Delete
-        </button>
-      </div>
-      {error && (
-        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          <AlertCircle size={16} /> {error}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
         <input
           className={`${inputCls} w-auto flex-1`}
           placeholder={placeholder}
@@ -676,29 +651,40 @@ function DropdownOptionPanel({ title, allOptions, fixedOptions, onAdd, onDelete,
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
         <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800">
-          <Plus size={15} /> Save
+          Add
         </button>
+      </div>
+      {error && (
+        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+      <div className="max-h-60 overflow-y-auto rounded-lg border border-stone-200">
+        {fixedOptions.map((c) => (
+          <div key={c} className="flex items-center justify-between gap-3 border-b border-stone-100 px-3.5 py-2.5 text-sm last:border-b-0">
+            <span className="font-medium text-stone-800">{c} <span className="text-xs font-normal text-stone-400">(built-in)</span></span>
+            <span className="shrink-0 cursor-default text-xs text-stone-300">Remove</span>
+          </div>
+        ))}
+        {customOptions.map((o) => (
+          <div key={o.id} className="flex items-center justify-between gap-3 border-b border-stone-100 px-3.5 py-2.5 text-sm last:border-b-0">
+            <span className="font-medium text-stone-800">{o.value}</span>
+            <button onClick={() => onDeleteId(o.id)} className="shrink-0 text-xs text-rose-600 underline decoration-1 underline-offset-2 hover:text-rose-700">
+              Remove
+            </button>
+          </div>
+        ))}
       </div>
       {note && <p className="mt-2 text-xs text-stone-500">{note}</p>}
     </section>
   );
 }
 
-function ConceptOptionsPanel({ categories, conceptOptionsFor, selectedCategory, onSelectCategory, onAdd, onDelete, error }) {
-  const [selected, setSelected] = useState("");
+function ConceptOptionsPanel({ categories, customConcepts, selectedCategory, onSelectCategory, onAdd, onDeleteId, error }) {
   const [value, setValue] = useState("");
   const cat = selectedCategory || categories[0] || "";
   const fixed = CATEGORY_CONCEPTS[cat] || [];
-  const options = conceptOptionsFor(cat);
-
-  useEffect(() => {
-    if (!options.includes(selected)) setSelected(options[0] || "");
-  }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleDelete = () => {
-    if (!selected) return;
-    onDelete(selected, cat);
-  };
+  const custom = customConcepts.filter((o) => o.parent_category === cat);
 
   const handleAdd = async () => {
     const ok = await onAdd(cat, value);
@@ -708,24 +694,19 @@ function ConceptOptionsPanel({ categories, conceptOptionsFor, selectedCategory, 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-4">
       <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Concepts</h2>
-      <div className="mb-2.5 flex items-center gap-2 text-xs text-stone-600">
-        For category:
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <select className={`${inputCls} w-auto`} value={cat} onChange={(e) => onSelectCategory(e.target.value)}>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-      </div>
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        {options.length === 0 ? (
-          <p className="text-sm text-stone-500">No concepts yet for this category.</p>
-        ) : (
-          <select className={`${inputCls} w-auto`} value={selected} onChange={(e) => setSelected(e.target.value)}>
-            {options.map((o) => (
-              <option key={o} value={o}>{o}{fixed.includes(o) ? " (built-in)" : ""}</option>
-            ))}
-          </select>
-        )}
-        <button onClick={handleDelete} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
-          <Trash2 size={14} /> Delete
+        <input
+          className={`${inputCls} w-auto flex-1`}
+          placeholder="Add concept..."
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+        />
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800">
+          Add
         </button>
       </div>
       {error && (
@@ -733,18 +714,26 @@ function ConceptOptionsPanel({ categories, conceptOptionsFor, selectedCategory, 
           <AlertCircle size={16} /> {error}
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          className={`${inputCls} w-auto flex-1`}
-          placeholder="New concept name"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-        />
-        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800">
-          <Plus size={15} /> Save
-        </button>
-      </div>
+      {fixed.length === 0 && custom.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-stone-300 py-6 text-center text-sm text-stone-500">No concepts yet for this category.</p>
+      ) : (
+        <div className="max-h-60 overflow-y-auto rounded-lg border border-stone-200">
+          {fixed.map((c) => (
+            <div key={c} className="flex items-center justify-between gap-3 border-b border-stone-100 px-3.5 py-2.5 text-sm last:border-b-0">
+              <span className="font-medium text-stone-800">{c} <span className="text-xs font-normal text-stone-400">(built-in)</span></span>
+              <span className="shrink-0 cursor-default text-xs text-stone-300">Remove</span>
+            </div>
+          ))}
+          {custom.map((o) => (
+            <div key={o.id} className="flex items-center justify-between gap-3 border-b border-stone-100 px-3.5 py-2.5 text-sm last:border-b-0">
+              <span className="font-medium text-stone-800">{o.value}</span>
+              <button onClick={() => onDeleteId(o.id)} className="shrink-0 text-xs text-rose-600 underline decoration-1 underline-offset-2 hover:text-rose-700">
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -1944,13 +1933,15 @@ export default function PLUDLeasingTracker() {
               </div>
             </div>
 
-            <div className="no-print mb-4 flex flex-wrap gap-1.5">
+            <div className="no-print mb-4 max-w-xs overflow-hidden rounded-lg border border-stone-200">
               {REPORT_TYPES.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => setReportType(r.id)}
-                  className={`rounded-full border px-3.5 py-1.5 text-sm font-medium ${
-                    reportType === r.id ? "border-amber-700 bg-amber-700 text-white" : "border-stone-300 bg-white text-stone-600"
+                  className={`block w-full border-b border-stone-100 px-3.5 py-2.5 text-left text-sm font-medium last:border-b-0 ${
+                    reportType === r.id
+                      ? "border-l-4 border-l-teal-700 bg-amber-50 font-semibold text-amber-800"
+                      : "border-l-4 border-l-transparent text-stone-700 hover:bg-stone-50"
                   }`}
                 >
                   {r.label}
@@ -2145,34 +2136,34 @@ export default function PLUDLeasingTracker() {
               <p className="mt-2.5 text-xs text-stone-500">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
             </section>
 
-            <DropdownOptionPanel
+            <ListOptionPanel
               title="Categories"
-              allOptions={allCategoryOptions}
               fixedOptions={CATEGORIES}
+              customOptions={customCategories}
               onAdd={addCustomCategory}
-              onDelete={deleteCategoryByValue}
+              onDeleteId={deleteCustomOption}
               error={optionError.category}
-              placeholder="New category name"
+              placeholder="Add category..."
             />
 
             <ConceptOptionsPanel
               categories={allCategoryOptions}
-              conceptOptionsFor={conceptOptionsFor}
+              customConcepts={customConcepts}
               selectedCategory={settingsConceptCategory}
               onSelectCategory={setSettingsConceptCategory}
               onAdd={addCustomConcept}
-              onDelete={deleteConceptByValue}
+              onDeleteId={deleteCustomOption}
               error={optionError.concept}
             />
 
-            <DropdownOptionPanel
+            <ListOptionPanel
               title="Statuses"
-              allOptions={allStatusOptions}
               fixedOptions={STATUSES}
+              customOptions={customStatuses}
               onAdd={addCustomStatus}
-              onDelete={deleteStatusByValue}
+              onDeleteId={deleteCustomOption}
               error={optionError.status}
-              placeholder="New status name"
+              placeholder="Add status..."
               note={'New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.'}
             />
 
