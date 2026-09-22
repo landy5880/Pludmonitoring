@@ -567,9 +567,18 @@ function LoginScreen({ onLoginWithPassword }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 w-full rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-60"
+          className="relative mt-6 w-full overflow-hidden rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-90"
         >
-          Sign in
+          {submitting ? "Signing in" : "Sign in"}
+          {submitting && (
+            <span className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-white/25">
+              <style>{"@keyframes btn-indeterminate{0%{left:-35%;}100%{left:100%;}}"}</style>
+              <span
+                className="absolute inset-y-0 w-1/3 rounded bg-white"
+                style={{ animation: "btn-indeterminate 1.1s ease-in-out infinite" }}
+              />
+            </span>
+          )}
         </button>
       </form>
     </div>
