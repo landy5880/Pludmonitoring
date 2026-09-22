@@ -55,6 +55,28 @@
   h1.page-title{font-family:var(--font-serif); font-size:19px; font-weight:600; margin:0; color:var(--stone-900);}
   p.page-sub{font-size:13px; color:var(--stone-500); margin:2px 0 0;}
 
+  /* dashboard */
+  .dash-header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .dash-greeting{font-family:var(--font-serif); font-size:20px; font-weight:600; margin:0; color:var(--stone-900);}
+  .dash-subtitle{font-size:13.5px; color:var(--stone-600); margin:3px 0 0;}
+  .dash-meta{font-size:12px; color:var(--stone-400); margin:4px 0 0;}
+  .dash-quick-actions{display:flex; flex-wrap:wrap; gap:8px;}
+  .kpi-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+  @media(min-width:768px){.kpi-grid{grid-template-columns:repeat(4,1fr);}}
+  .kpi-card{text-align:left; border:1px solid var(--stone-200); background:#fff; border-radius:8px; padding:16px; border-top:2px solid var(--teal-700); cursor:pointer; transition:box-shadow .12s, border-color .12s;}
+  .kpi-card:hover{border-color:var(--stone-300); box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .funnel{display:flex; flex-direction:column; gap:12px;}
+  .funnel-row{display:grid; grid-template-columns:150px 1fr 32px; align-items:center; gap:10px; row-gap:2px;}
+  .funnel-label{font-size:12.5px; color:var(--stone-700); font-weight:500;}
+  .funnel-count{font-size:12.5px; font-weight:600; color:var(--stone-800); text-align:right;}
+  .funnel-pct{grid-column:2; font-size:11px; color:var(--stone-500);}
+  .funnel-conv{grid-column:3 / span 1; font-size:11px; color:var(--stone-400); white-space:nowrap; text-align:right;}
+  @media(min-width:640px){
+    .funnel-row{grid-template-columns:150px 1fr 32px 130px;}
+    .funnel-pct{grid-column:auto;}
+    .funnel-conv{grid-column:auto;}
+  }
+
   /* buttons */
   .btn{display:inline-flex; align-items:center; gap:6px; border-radius:6px; padding:8px 14px; font-size:14px; font-weight:500; border:1px solid transparent; cursor:pointer; position:relative; overflow:hidden;}
   .btn:disabled{cursor:default; opacity:.85;}
@@ -462,6 +484,7 @@ const state = {
   showAddOption: null,
   optionFormError: "",
   settingsConceptCategory: "",
+  lastSyncedAt: null,
 };
 
 function allCategories() {
@@ -611,6 +634,7 @@ async function loadData() {
     state.customStatuses = optionsRes.data.filter((o) => o.option_type === "status");
     state.users = usersRes.data;
     state.saveError = "";
+    state.lastSyncedAt = new Date();
   } catch (e) {
     console.error("Supabase load failed:", e);
     state.tenants = SEED_TENANTS;
@@ -670,20 +694,32 @@ function computeStats() {
   const lost = tenants.filter((t) => t.status === "Lost/ Inactive").length;
   const active = totalInquiries - awarded - lost;
   const conversionRate = totalInquiries ? awarded / totalInquiries : 0;
+  const underEvaluation = tenants.filter((t) => t.status === "Under Evaluation").length;
 
   const totalUnits = lc.length;
   const available = lc.filter((l) => l.kind === "available").length;
   const occupied = lc.filter((l) => l.kind === "occupied").length;
   const occupancyRate = totalUnits ? occupied / totalUnits : 0;
+  const totalProperties = new Set(lc.map((l) => l.property)).size;
 
   const byStage = allStatuses().map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
+  const pipelineFunnel = STATUSES.map((s, i) => {
+    const count = tenants.filter((t) => t.status === s).length;
+    const prevCount = i === 0 ? null : tenants.filter((t) => t.status === STATUSES[i - 1]).length;
+    return {
+      stage: s, count,
+      pctOfTotal: totalInquiries ? count / totalInquiries : 0,
+      conversion: prevCount ? (prevCount ? count / prevCount : 0) : null,
+    };
+  });
 
   const byProperty = PROPERTIES.filter((p) => lc.some((l) => l.property === p)).map((p) => {
     const units = lc.filter((l) => l.property === p);
     const total = units.length;
     const avail = units.filter((l) => l.kind === "available").length;
     const occ = units.filter((l) => l.kind === "occupied").length;
-    return { property: p, total, available: avail, occupied: occ, occupancyPct: total ? occ / total : 0 };
+    const activeInq = tenants.filter((t) => t.property === p && t.status !== "Awarded/ Leased" && t.status !== "Lost/ Inactive").length;
+    return { property: p, total, available: avail, occupied: occ, activeInquiries: activeInq, occupancyPct: total ? occ / total : 0 };
   });
 
   const pipeline = tenants
@@ -721,6 +757,18 @@ function computeStats() {
   const maintOpen = maint.filter((m) => m.status === "Open").length;
   const maintInProgress = maint.filter((m) => m.status === "In Progress").length;
   const maintUrgent = maint.filter((m) => (m.status === "Open" || m.status === "In Progress") && m.priority === "Urgent").length;
+  const maintHigh = maint.filter((m) => (m.status === "Open" || m.status === "In Progress") && m.priority === "High").length;
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const resolvedThisMonth = maint.filter((m) => m.status === "Resolved" && m.resolvedDate && m.resolvedDate >= monthStart).length;
+  const resolvedWithDates = maint.filter((m) => m.status === "Resolved" && m.reportedDate && m.resolvedDate);
+  const avgResolutionDays = resolvedWithDates.length
+    ? resolvedWithDates.reduce((sum, m) => {
+        const days = (new Date(m.resolvedDate + "T00:00:00") - new Date(m.reportedDate + "T00:00:00")) / 86400000;
+        return sum + Math.max(0, days);
+      }, 0) / resolvedWithDates.length
+    : null;
+
   const maintNeedsAttention = maint
     .filter((m) => m.status === "Open" || m.status === "In Progress")
     .map((m) => {
@@ -736,10 +784,10 @@ function computeStats() {
     .slice(0, 6);
 
   return {
-    totalInquiries, awarded, lost, active, conversionRate,
+    totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties,
     totalUnits, available, occupied, occupancyRate,
-    byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
-    maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintNeedsAttention,
+    byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
+    maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
   };
 }
 
@@ -921,56 +969,83 @@ function setTab(id) {
 function dashboardHtml() {
   const s = computeStats();
   const maxStage = Math.max(1, ...s.byStage.map((x) => x.count));
+  const maxFunnel = Math.max(1, ...s.pipelineFunnel.map((x) => x.count));
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+  const kpis = [
+    { label: "Total properties", value: s.totalProperties, onClick: "goToListingsTab()" },
+    { label: "Total units", value: s.totalUnits, onClick: "goToListingsTab()" },
+    { label: "Available units", value: s.available, onClick: "goToListingsTab()", accent: "emerald" },
+    { label: "Occupied units", value: s.occupied, onClick: "goToListingsTab()" },
+    { label: "Active inquiries", value: s.active, onClick: "goToTenantsFiltered('All')", accent: "blue" },
+    { label: "Under evaluation", value: s.underEvaluation, onClick: "goToTenantsFiltered('Under Evaluation')" },
+    { label: "Leased", value: s.awarded, onClick: "goToTenantsFiltered('Awarded/ Leased')", accent: "emerald" },
+    { label: "Open maintenance", value: s.maintOpen, onClick: "goToMaintenanceFiltered('Open')", accent: "rose" },
+  ];
+
   return `
   <div class="stack">
-    <div>
-      <h1 style="font-size:17px;font-weight:600;margin:0;color:var(--stone-900);">Dashboard</h1>
-      <p style="font-size:13px;color:var(--stone-500);margin:2px 0 0;">Pipeline health and listings inventory at a glance.</p>
+    <div class="dash-header no-print">
+      <div>
+        <h1 class="dash-greeting">${greetingWord()}, ${esc(state.user.name)}</h1>
+        <p class="dash-subtitle">Property Leasing &amp; Operations Overview</p>
+        <p class="dash-meta">${esc(today)} · Last synced ${fmtSyncTime(state.lastSyncedAt)}</p>
+      </div>
+      <div class="dash-quick-actions">
+        <button class="btn btn-outline" onclick="openNewTenant()">${icon("plus", 15)} New inquiry</button>
+        <button class="btn btn-outline" onclick="openNewMaint()">${icon("plus", 15)} New maintenance request</button>
+        <button class="btn btn-outline" onclick="openNewListing()">${icon("plus", 15)} Add unit</button>
+      </div>
     </div>
 
     <section>
+      <div class="kpi-grid">
+        ${kpis.map((k) => `
+          <button class="kpi-card" onclick="${k.onClick}">
+            <p class="stat-label">${esc(k.label)}</p>
+            <p class="stat-value ${k.accent || ""}">${k.value}</p>
+          </button>`).join("")}
+      </div>
+    </section>
+
+    <section class="panel">
       <h2 class="section-title">Leasing pipeline</h2>
-      <div class="stat-grid">
-        <div class="stat-card"><p class="stat-label">Total inquiries</p><p class="stat-value">${s.totalInquiries}</p></div>
-        <div class="stat-card"><p class="stat-label">Active pipeline</p><p class="stat-value blue">${s.active}</p></div>
-        <div class="stat-card"><p class="stat-label">Awarded / leased</p><p class="stat-value emerald">${s.awarded}</p></div>
-        <div class="stat-card"><p class="stat-label">Conversion rate</p><p class="stat-value">${Math.round(s.conversionRate * 100)}%</p><p class="stat-sub">${s.awarded} of ${s.totalInquiries} inquiries</p></div>
+      <div class="funnel">
+        ${s.pipelineFunnel.map((f) => `
+          <div class="funnel-row">
+            <span class="funnel-label">${esc(f.stage)}</span>
+            <div class="stage-track"><div class="stage-fill d-${STATUS_STYLE[f.stage] || "slate"}" style="width:${(f.count / maxFunnel) * 100}%; background:var(--${{slate:"stone-400",amber:"amber-500",blue:"blue-500",emerald:"emerald-500",rose:"rose-600"}[STATUS_STYLE[f.stage] || "slate"]});"></div></div>
+            <span class="funnel-count">${f.count}</span>
+            <span class="funnel-pct">${Math.round(f.pctOfTotal * 100)}% of total</span>
+            <span class="funnel-conv">${f.conversion === null ? "—" : Math.round(f.conversion * 100) + "% from prior stage"}</span>
+          </div>`).join("")}
       </div>
     </section>
 
-    <section>
-      <h2 class="section-title">Listings inventory</h2>
-      <div class="stat-grid">
-        <div class="stat-card"><p class="stat-label">Total units</p><p class="stat-value">${s.totalUnits}</p></div>
-        <div class="stat-card"><p class="stat-label">Available</p><p class="stat-value emerald">${s.available}</p></div>
-        <div class="stat-card"><p class="stat-label">Occupied</p><p class="stat-value">${s.occupied}</p></div>
-        <div class="stat-card"><p class="stat-label">Occupancy rate</p><p class="stat-value">${Math.round(s.occupancyRate * 100)}%</p></div>
-      </div>
+    <section class="panel">
+      <h2 class="section-title">Property occupancy</h2>
+      <div class="table-wrap"><div class="table-scroll">
+        <table class="data narrow">
+          <thead><tr><th>Property</th><th class="right">Total units</th><th class="right">Occupied</th><th class="right">Available</th><th class="right">Active inquiries</th><th>Occupancy</th></tr></thead>
+          <tbody>
+            ${s.byProperty.map((p) => `
+              <tr>
+                <td style="font-weight:500;color:var(--stone-900);">${esc(p.property)}</td>
+                <td class="right">${p.total}</td>
+                <td class="right">${p.occupied}</td>
+                <td class="right">${p.available}</td>
+                <td class="right">${p.activeInquiries}</td>
+                <td style="min-width:160px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="stage-track" style="flex:1;"><div class="stage-fill" style="width:${Math.round(p.occupancyPct * 100)}%; background:var(--teal-700);"></div></div>
+                    <span style="font-size:12px;color:var(--stone-600);width:34px;text-align:right;">${Math.round(p.occupancyPct * 100)}%</span>
+                  </div>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div></div>
     </section>
-
-    <div class="two-col">
-      <section class="panel">
-        <h2 class="section-title">Pipeline by stage</h2>
-        ${s.byStage.map(({ stage, count }) => `
-          <div class="stage-row">
-            <span class="stage-label">${esc(stage)}</span>
-            <div class="stage-track"><div class="stage-fill d-${STATUS_STYLE[stage] || "slate"}" style="width:${(count / maxStage) * 100}%; background:var(--${{slate:"stone-400",amber:"amber-500",blue:"blue-500",emerald:"emerald-500",rose:"rose-600"}[STATUS_STYLE[stage] || "slate"]});"></div></div>
-            <span class="stage-count">${count}</span>
-          </div>`).join("")}
-      </section>
-
-      <section class="panel">
-        <h2 class="section-title">Occupancy by property</h2>
-        ${s.byProperty.map((p) => `
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-              <span style="font-weight:500;color:var(--stone-700);">${esc(p.property)}</span>
-              <span style="color:var(--stone-500);">${p.occupied}/${p.total} occupied · ${p.available} avail.</span>
-            </div>
-            <div class="stage-track"><div class="stage-fill" style="width:${Math.round(p.occupancyPct * 100)}%; background:var(--teal-700);"></div></div>
-          </div>`).join("")}
-      </section>
-    </div>
 
     <div class="two-col">
       <section class="panel">
@@ -989,7 +1064,7 @@ function dashboardHtml() {
       </section>
 
       <section class="panel">
-        <h2 class="section-title">Upcoming this week</h2>
+        <h2 class="section-title">Upcoming activities</h2>
         ${s.upcoming.length === 0 ? `<p class="empty-note">No viewings or tastings scheduled in the next 7 days.</p>` : `
           <div>
             ${s.upcoming.map((u) => `
@@ -1001,16 +1076,19 @@ function dashboardHtml() {
                 <span style="flex-shrink:0;font-size:12px;font-weight:500;color:var(--stone-700);">${u.daysOut === 0 ? "Today" : u.daysOut === 1 ? "Tomorrow" : fmtDate(u.dateStr)}</span>
               </button>`).join("")}
           </div>`}
+        <p style="margin:10px 0 0;font-size:11px;color:var(--stone-400);">Unit viewings and food tastings shown here. Follow-up dates and maintenance appointments aren't tracked as scheduled events yet.</p>
       </section>
     </div>
 
     <section>
-      <h2 class="section-title">Maintenance</h2>
+      <h2 class="section-title">Maintenance overview</h2>
       <div class="stat-grid">
-        <div class="stat-card"><p class="stat-label">Total requests</p><p class="stat-value">${s.maintTotal}</p></div>
         <div class="stat-card"><p class="stat-label">Open</p><p class="stat-value rose">${s.maintOpen}</p></div>
+        <div class="stat-card"><p class="stat-label">Urgent</p><p class="stat-value rose">${s.maintUrgent}</p></div>
+        <div class="stat-card"><p class="stat-label">High priority</p><p class="stat-value">${s.maintHigh}</p></div>
         <div class="stat-card"><p class="stat-label">In progress</p><p class="stat-value blue">${s.maintInProgress}</p></div>
-        <div class="stat-card"><p class="stat-label">Urgent priority</p><p class="stat-value rose">${s.maintUrgent}</p></div>
+        <div class="stat-card"><p class="stat-label">Resolved this month</p><p class="stat-value emerald">${s.resolvedThisMonth}</p></div>
+        <div class="stat-card"><p class="stat-label">Avg. resolution time</p><p class="stat-value">${s.avgResolutionDays === null ? "—" : s.avgResolutionDays.toFixed(1) + "d"}</p></div>
       </div>
     </section>
 
@@ -1030,7 +1108,7 @@ function dashboardHtml() {
     </section>
 
     <section class="panel">
-      <h2 class="section-title">Active pipeline, most recent first</h2>
+      <h2 class="section-title">Recent leasing activity</h2>
       ${s.pipeline.length === 0 ? `<p class="empty-note">No active inquiries right now.</p>` : `
         <div>
           ${s.pipeline.map((t) => `
@@ -1049,6 +1127,33 @@ function dashboardHtml() {
 function goToMaintenance(id) {
   state.tab = "maintenance";
   openEditMaint(id);
+}
+function goToTenantsFiltered(status) {
+  state.tab = "tenants";
+  state.tenantStatusFilter = status;
+  state.tenantPropertyFilter = "All";
+  state.tenantSearch = "";
+  render();
+}
+function goToMaintenanceFiltered(status) {
+  state.tab = "maintenance";
+  state.maintStatusFilter = status;
+  state.maintPropertyFilter = "All";
+  render();
+}
+function goToListingsTab() {
+  state.tab = "listings";
+  render();
+}
+function greetingWord() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+function fmtSyncTime(d) {
+  if (!d) return "—";
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 /* ---------------------------------------------------------------------- */

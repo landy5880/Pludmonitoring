@@ -916,6 +916,7 @@ export default function PLUDLeasingTracker() {
   const [customStatuses, setCustomStatuses] = useState([]);
   const [settingsConceptCategory, setSettingsConceptCategory] = useState("");
   const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
   const [tenants, setTenants] = useState([]);
   const [listings, setListings] = useState([]);
@@ -1029,6 +1030,7 @@ export default function PLUDLeasingTracker() {
         setCustomStatuses(optionRows.filter((o) => o.option_type === "status"));
         setUsers(userRows);
         setSaveError("");
+        setLastSyncedAt(new Date());
       } catch (e) {
         console.error("Supabase load failed:", e);
         setTenants(SEED_TENANTS);
@@ -1188,6 +1190,27 @@ export default function PLUDLeasingTracker() {
     if (opt) deleteCustomOption(opt.id);
   }, [customConcepts, deleteCustomOption]);
 
+  const greetingWord = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  };
+  const fmtSyncTime = (d) => (d ? d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
+
+  const goToTenantsFiltered = useCallback((status) => {
+    setTab("tenants");
+    setTenantStatusFilter(status);
+    setTenantPropertyFilter("All");
+    setTenantSearch("");
+  }, []);
+  const goToMaintenanceFiltered = useCallback((status) => {
+    setTab("maintenance");
+    setMaintStatusFilter(status);
+    setMaintPropertyFilter("All");
+  }, []);
+  const goToListingsTab = useCallback(() => setTab("listings"), []);
+
   const unitsByProperty = useMemo(() => {
     const map = {};
     listings.forEach((l) => {
@@ -1260,21 +1283,32 @@ export default function PLUDLeasingTracker() {
     const lost = tenants.filter((t) => t.status === "Lost/ Inactive").length;
     const active = totalInquiries - awarded - lost;
     const conversionRate = totalInquiries ? awarded / totalInquiries : 0;
+    const underEvaluation = tenants.filter((t) => t.status === "Under Evaluation").length;
 
     const totalUnits = listingsComputed.length;
     const available = listingsComputed.filter((l) => l.kind === "available").length;
     const occupied = listingsComputed.filter((l) => l.kind === "occupied").length;
     const occupancyRate = totalUnits ? occupied / totalUnits : 0;
+    const totalProperties = new Set(listingsComputed.map((l) => l.property)).size;
 
     const byStage = allStatusOptions.map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
+    const pipelineFunnel = STATUSES.map((s, i) => {
+      const count = tenants.filter((t) => t.status === s).length;
+      const prevCount = i === 0 ? null : tenants.filter((t) => t.status === STATUSES[i - 1]).length;
+      return {
+        stage: s, count,
+        pctOfTotal: totalInquiries ? count / totalInquiries : 0,
+        conversion: prevCount ? count / prevCount : null,
+      };
+    });
 
     const byProperty = PROPERTIES.filter((p) => listingsComputed.some((l) => l.property === p)).map((p) => {
       const units = listingsComputed.filter((l) => l.property === p);
       const total = units.length;
       const avail = units.filter((l) => l.kind === "available").length;
-      const act = units.filter((l) => l.kind === "active").length;
       const occ = units.filter((l) => l.kind === "occupied").length;
-      return { property: p, total, available: avail, active: act, occupied: occ, occupancyPct: total ? occ / total : 0 };
+      const activeInquiries = tenants.filter((t) => t.property === p && t.status !== "Awarded/ Leased" && t.status !== "Lost/ Inactive").length;
+      return { property: p, total, available: avail, occupied: occ, activeInquiries, occupancyPct: total ? occ / total : 0 };
     });
 
     const pipeline = tenants
@@ -1311,6 +1345,18 @@ export default function PLUDLeasingTracker() {
     const maintOpen = maintenance.filter((m) => m.status === "Open").length;
     const maintInProgress = maintenance.filter((m) => m.status === "In Progress").length;
     const maintUrgent = maintenance.filter((m) => (m.status === "Open" || m.status === "In Progress") && m.priority === "Urgent").length;
+    const maintHigh = maintenance.filter((m) => (m.status === "Open" || m.status === "In Progress") && m.priority === "High").length;
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const resolvedThisMonth = maintenance.filter((m) => m.status === "Resolved" && m.resolvedDate && m.resolvedDate >= monthStart).length;
+    const resolvedWithDates = maintenance.filter((m) => m.status === "Resolved" && m.reportedDate && m.resolvedDate);
+    const avgResolutionDays = resolvedWithDates.length
+      ? resolvedWithDates.reduce((sum, m) => {
+          const days = (new Date(m.resolvedDate + "T00:00:00") - new Date(m.reportedDate + "T00:00:00")) / 86400000;
+          return sum + Math.max(0, days);
+        }, 0) / resolvedWithDates.length
+      : null;
+
     const maintNeedsAttention = maintenance
       .filter((m) => m.status === "Open" || m.status === "In Progress")
       .map((m) => {
@@ -1326,10 +1372,10 @@ export default function PLUDLeasingTracker() {
       .slice(0, 6);
 
     return {
-      totalInquiries, awarded, lost, active, conversionRate,
+      totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties,
       totalUnits, available, occupied, occupancyRate,
-      byStage, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
-      maintTotal: maintenance.length, maintOpen, maintInProgress, maintUrgent, maintNeedsAttention,
+      byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
+      maintTotal: maintenance.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
     };
   }, [tenants, listingsComputed, maintenance, allStatusOptions]);
 
@@ -1497,68 +1543,102 @@ export default function PLUDLeasingTracker() {
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">
         {tab === "dashboard" && (
           <div className="space-y-6">
-            <div>
-              <h1 className="font-serif text-lg font-semibold text-stone-900">Dashboard</h1>
-              <p className="text-sm text-stone-500">Pipeline health and listings inventory at a glance.</p>
+            <div className="no-print flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="font-serif text-xl font-semibold text-stone-900">{greetingWord()}, {user.name}</h1>
+                <p className="mt-0.5 text-sm text-stone-600">Property Leasing &amp; Operations Overview</p>
+                <p className="mt-1 text-xs text-stone-400">
+                  {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · Last synced {fmtSyncTime(lastSyncedAt)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setShowNewTenant(true)} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                  <Plus size={15} /> New inquiry
+                </button>
+                <button onClick={() => setShowNewMaint(true)} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                  <Plus size={15} /> New maintenance request
+                </button>
+                <button onClick={() => setShowNewListing(true)} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                  <Plus size={15} /> Add unit
+                </button>
+              </div>
             </div>
 
-            <section>
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Total properties", value: stats.totalProperties, onClick: goToListingsTab },
+                { label: "Total units", value: stats.totalUnits, onClick: goToListingsTab },
+                { label: "Available units", value: stats.available, onClick: goToListingsTab, accent: "text-emerald-700" },
+                { label: "Occupied units", value: stats.occupied, onClick: goToListingsTab },
+                { label: "Active inquiries", value: stats.active, onClick: () => goToTenantsFiltered("All"), accent: "text-blue-700" },
+                { label: "Under evaluation", value: stats.underEvaluation, onClick: () => goToTenantsFiltered("Under Evaluation") },
+                { label: "Leased", value: stats.awarded, onClick: () => goToTenantsFiltered("Awarded/ Leased"), accent: "text-emerald-700" },
+                { label: "Open maintenance", value: stats.maintOpen, onClick: () => goToMaintenanceFiltered("Open"), accent: "text-rose-700" },
+              ].map((k) => (
+                <button key={k.label} onClick={k.onClick} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left transition hover:border-stone-300 hover:shadow-sm">
+                  <p className="text-xs font-medium text-stone-500">{k.label}</p>
+                  <p className={`mt-1.5 font-serif text-2xl font-semibold ${k.accent || "text-stone-900"}`}>{k.value}</p>
+                </button>
+              ))}
+            </section>
+
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Leasing pipeline</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatCard label="Total inquiries" value={stats.totalInquiries} />
-                <StatCard label="Active pipeline" value={stats.active} accent="text-blue-700" />
-                <StatCard label="Awarded / leased" value={stats.awarded} accent="text-emerald-700" />
-                <StatCard label="Conversion rate" value={`${Math.round(stats.conversionRate * 100)}%`} sub={`${stats.awarded} of ${stats.totalInquiries} inquiries`} />
-              </div>
-            </section>
-
-            <section>
-              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Listings inventory</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatCard label="Total units" value={stats.totalUnits} />
-                <StatCard label="Available" value={stats.available} accent="text-emerald-700" />
-                <StatCard label="Occupied" value={stats.occupied} accent="text-stone-900" />
-                <StatCard label="Occupancy rate" value={`${Math.round(stats.occupancyRate * 100)}%`} />
-              </div>
-            </section>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <section className="rounded-lg border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Pipeline by stage</h2>
-                <div className="space-y-2.5">
-                  {stats.byStage.map(({ stage, count }) => {
-                    const max = Math.max(1, ...stats.byStage.map((s) => s.count));
-                    const s = STATUS_STYLE[stage];
-                    return (
-                      <div key={stage} className="flex items-center gap-3">
-                        <span className="w-40 shrink-0 text-xs text-stone-600">{stage}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
-                          <div className={`h-full rounded-full ${s.dot}`} style={{ width: `${(count / max) * 100}%` }} />
-                        </div>
-                        <span className="w-6 shrink-0 text-right text-xs font-medium text-stone-700">{count}</span>
+              <div className="space-y-3">
+                {stats.pipelineFunnel.map((f) => {
+                  const max = Math.max(1, ...stats.pipelineFunnel.map((x) => x.count));
+                  const s = STATUS_STYLE[f.stage];
+                  return (
+                    <div key={f.stage} className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:flex-nowrap">
+                      <span className="w-36 shrink-0 text-xs font-medium text-stone-700">{f.stage}</span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
+                        <div className={`h-full rounded-full ${s.dot}`} style={{ width: `${(f.count / max) * 100}%` }} />
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Occupancy by property</h2>
-                <div className="space-y-3">
-                  {stats.byProperty.map((p) => (
-                    <div key={p.property}>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="font-medium text-stone-700">{p.property}</span>
-                        <span className="text-stone-500">{p.occupied}/{p.total} occupied · {p.available} avail.</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-stone-100">
-                        <div className="h-full rounded-full bg-violet-700" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
-                      </div>
+                      <span className="w-8 shrink-0 text-right text-xs font-semibold text-stone-800">{f.count}</span>
+                      <span className="w-24 shrink-0 text-xs text-stone-500">{Math.round(f.pctOfTotal * 100)}% of total</span>
+                      <span className="w-36 shrink-0 text-right text-xs text-stone-400">{f.conversion === null ? "—" : `${Math.round(f.conversion * 100)}% from prior stage`}</span>
                     </div>
-                  ))}
-                </div>
-              </section>
-            </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Property occupancy</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                    <tr>
+                      <th className="py-2 pr-3 font-medium">Property</th>
+                      <th className="px-3 py-2 text-right font-medium">Total units</th>
+                      <th className="px-3 py-2 text-right font-medium">Occupied</th>
+                      <th className="px-3 py-2 text-right font-medium">Available</th>
+                      <th className="px-3 py-2 text-right font-medium">Active inquiries</th>
+                      <th className="py-2 pl-3 font-medium">Occupancy</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {stats.byProperty.map((p) => (
+                      <tr key={p.property}>
+                        <td className="py-2.5 pr-3 font-medium text-stone-900">{p.property}</td>
+                        <td className="px-3 py-2.5 text-right text-stone-600">{p.total}</td>
+                        <td className="px-3 py-2.5 text-right text-stone-600">{p.occupied}</td>
+                        <td className="px-3 py-2.5 text-right text-stone-600">{p.available}</td>
+                        <td className="px-3 py-2.5 text-right text-stone-600">{p.activeInquiries}</td>
+                        <td className="py-2.5 pl-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
+                              <div className="h-full rounded-full bg-violet-700" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
+                            </div>
+                            <span className="w-9 shrink-0 text-right text-xs text-stone-600">{Math.round(p.occupancyPct * 100)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <section className="rounded-lg border border-stone-200 bg-white p-4">
@@ -1587,7 +1667,7 @@ export default function PLUDLeasingTracker() {
               </section>
 
               <section className="rounded-lg border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Upcoming this week</h2>
+                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Upcoming activities</h2>
                 {stats.upcoming.length === 0 ? (
                   <p className="py-6 text-center text-sm text-stone-500">No viewings or tastings scheduled in the next 7 days.</p>
                 ) : (
@@ -1609,16 +1689,19 @@ export default function PLUDLeasingTracker() {
                     ))}
                   </div>
                 )}
+                <p className="mt-2.5 text-xs text-stone-400">Unit viewings and food tastings shown here. Follow-up dates and maintenance appointments aren't tracked as scheduled events yet.</p>
               </section>
             </div>
 
             <section>
-              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Maintenance</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatCard label="Total requests" value={stats.maintTotal} />
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Maintenance overview</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <StatCard label="Open" value={stats.maintOpen} accent="text-rose-700" />
+                <StatCard label="Urgent" value={stats.maintUrgent} accent="text-rose-700" />
+                <StatCard label="High priority" value={stats.maintHigh} />
                 <StatCard label="In progress" value={stats.maintInProgress} accent="text-blue-700" />
-                <StatCard label="Urgent priority" value={stats.maintUrgent} accent="text-rose-700" />
+                <StatCard label="Resolved this month" value={stats.resolvedThisMonth} accent="text-emerald-700" />
+                <StatCard label="Avg. resolution time" value={stats.avgResolutionDays === null ? "—" : `${stats.avgResolutionDays.toFixed(1)}d`} />
               </div>
             </section>
 
@@ -1648,7 +1731,7 @@ export default function PLUDLeasingTracker() {
             </section>
 
             <section className="rounded-lg border border-stone-200 bg-white p-4">
-              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Active pipeline, most recent first</h2>
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Recent leasing activity</h2>
               {stats.pipeline.length === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No active inquiries right now.</p>
               ) : (
