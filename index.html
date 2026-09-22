@@ -288,6 +288,29 @@ const SEED_TENANTS = [
   },
 ];
 
+const MAINT_STATUSES = ["Open", "In Progress", "Resolved", "Cancelled"];
+const MAINT_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+const MAINT_STATUS_STYLE = { "Open": "rose", "In Progress": "amber", "Resolved": "emerald", "Cancelled": "slate" };
+const MAINT_PRIORITY_STYLE = { "Low": "slate", "Medium": "blue", "High": "amber", "Urgent": "rose" };
+
+const SEED_MAINTENANCE = [
+  {
+    id: "M1", property: "Vine Building", unit: "V301", issue: "Aircon unit not cooling, needs refill/service",
+    priority: "High", status: "Open", reportedDate: "2026-09-02", assignedTo: "Building Engineering",
+    resolvedDate: "", notes: "Tenant reported warm air only since Monday.",
+  },
+  {
+    id: "M2", property: "Vine Building", unit: "V102", issue: "Leaking pipe under kitchen sink",
+    priority: "Urgent", status: "In Progress", reportedDate: "2026-09-10", assignedTo: "Plumbing contractor",
+    resolvedDate: "", notes: "Contractor scheduled for site visit.",
+  },
+  {
+    id: "M3", property: "Diaz Property", unit: "Diaz Property", issue: "Flickering hallway lights",
+    priority: "Low", status: "Resolved", reportedDate: "2026-08-20", assignedTo: "In-house maintenance",
+    resolvedDate: "2026-08-22", notes: "Replaced ballast, confirmed fixed.",
+  },
+];
+
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
@@ -353,6 +376,7 @@ function icon(name, size, cls) {
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
     lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
     settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>',
   };
   return `<svg class="icon ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
 }
@@ -367,6 +391,7 @@ const state = {
   tenants: [],
   listings: [],
   users: [],
+  maintenance: [],
   loading: true,
   saveError: "",
   editingTenant: null,
@@ -381,6 +406,12 @@ const state = {
   showNewUser: false,
   deletingUserId: null,
   userFormError: "",
+  editingMaint: null,
+  showNewMaint: false,
+  deletingMaintId: null,
+  maintFormError: "",
+  maintStatusFilter: "All",
+  maintPropertyFilter: "All",
 };
 
 /* ---------------------------------------------------------------------- */
@@ -451,6 +482,23 @@ function listingStateToRow(l) {
   };
 }
 
+function maintRowToState(r) {
+  return {
+    id: r.id, property: r.property || "", unit: r.unit || "", issue: r.issue || "",
+    priority: r.priority || "Medium", status: r.status || "Open",
+    reportedDate: r.reported_date || "", assignedTo: r.assigned_to || "",
+    resolvedDate: r.resolved_date || "", notes: r.notes || "",
+  };
+}
+function maintStateToRow(m) {
+  return {
+    id: m.id, property: m.property || "", unit: m.unit || "", issue: m.issue || "",
+    priority: m.priority || "Medium", status: m.status || "Open",
+    reported_date: m.reportedDate || null, assigned_to: m.assignedTo || "",
+    resolved_date: m.resolvedDate || null, notes: m.notes || "",
+  };
+}
+
 async function init() {
   try {
     const res = await sessionStore.get(USER_STORAGE_KEY);
@@ -464,14 +512,16 @@ async function init() {
 async function loadData() {
   state.loading = true;
   try {
-    const [tenantsRes, listingsRes, usersRes] = await Promise.all([
+    const [tenantsRes, listingsRes, usersRes, maintRes] = await Promise.all([
       sb.from("plud_tenants").select("*"),
       sb.from("plud_listings").select("*"),
       sb.from("plud_users").select("id, username, name, role, created_at").order("created_at"),
+      sb.from("plud_maintenance").select("*"),
     ]);
     if (tenantsRes.error) throw tenantsRes.error;
     if (listingsRes.error) throw listingsRes.error;
     if (usersRes.error) throw usersRes.error;
+    if (maintRes.error) throw maintRes.error;
 
     if (tenantsRes.data.length === 0 && listingsRes.data.length === 0) {
       // First run against an empty database: seed it once.
@@ -483,12 +533,19 @@ async function loadData() {
       state.tenants = tenantsRes.data.map(tenantRowToState);
       state.listings = listingsRes.data.map(listingRowToState);
     }
+    if (maintRes.data.length === 0) {
+      await sb.from("plud_maintenance").upsert(SEED_MAINTENANCE.map(maintStateToRow));
+      state.maintenance = SEED_MAINTENANCE;
+    } else {
+      state.maintenance = maintRes.data.map(maintRowToState);
+    }
     state.users = usersRes.data;
     state.saveError = "";
   } catch (e) {
     console.error("Supabase load failed:", e);
     state.tenants = SEED_TENANTS;
     state.listings = SEED_LISTINGS;
+    state.maintenance = SEED_MAINTENANCE;
     state.users = [];
     state.saveError = "Couldn't reach the database — showing local sample data, changes won't be saved.";
   }
@@ -607,11 +664,19 @@ function filteredTenants() {
     .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
 }
 
+function filteredMaintenance() {
+  return state.maintenance
+    .filter((m) => (state.maintStatusFilter === "All" ? true : m.status === state.maintStatusFilter))
+    .filter((m) => (state.maintPropertyFilter === "All" ? true : m.property === state.maintPropertyFilter))
+    .slice()
+    .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
+}
+
 /* ---------------------------------------------------------------------- */
 /* Badge / small components                                               */
 /* ---------------------------------------------------------------------- */
-function badgeHtml(status) {
-  const cls = STATUS_STYLE[status] || "slate";
+function badgeHtml(status, styleMap) {
+  const cls = (styleMap || STATUS_STYLE)[status] || "slate";
   return `<span class="badge st-${cls}"><span class="dot d-${cls}"></span>${esc(status)}</span>`;
 }
 
@@ -698,6 +763,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
   { id: "tenants", label: "Prospective tenants", icon: "users" },
   { id: "listings", label: "PLUD listings", icon: "building" },
+  { id: "maintenance", label: "Maintenance", icon: "wrench" },
   { id: "settings", label: "Settings", icon: "settings" },
 ];
 
@@ -736,6 +802,8 @@ function appShellHtml() {
   ${state.deletingTenantId ? confirmDialogHtml() : ""}
   ${state.showNewUser ? userModalHtml() : ""}
   ${state.deletingUserId ? confirmDeleteUserDialogHtml() : ""}
+  ${(state.showNewMaint || state.editingMaint) ? maintModalHtml() : ""}
+  ${state.deletingMaintId ? confirmDeleteMaintDialogHtml() : ""}
   `;
 }
 
@@ -743,6 +811,7 @@ function tabContentHtml() {
   if (state.tab === "dashboard") return dashboardHtml();
   if (state.tab === "tenants") return tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
+  if (state.tab === "maintenance") return maintenanceTabHtml();
   if (state.tab === "settings") return settingsHtml();
   return "";
 }
@@ -1375,6 +1444,239 @@ function confirmDeleteUserDialogHtml() {
       <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
         <button class="btn btn-outline" onclick="cancelDeleteUser()">Cancel</button>
         <button class="btn btn-danger" onclick="confirmDeleteUser()">Remove</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Maintenance                                                             */
+/* ---------------------------------------------------------------------- */
+function maintenanceTabHtml() {
+  return `
+  <div>
+    <div class="toolbar">
+      <select class="input auto" onchange="onMaintStatusFilter(this.value)">
+        <option value="All" ${state.maintStatusFilter === "All" ? "selected" : ""}>All statuses</option>
+        ${MAINT_STATUSES.map((s) => `<option value="${esc(s)}" ${state.maintStatusFilter === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+      </select>
+      <select class="input auto" onchange="onMaintPropertyFilter(this.value)">
+        <option value="All" ${state.maintPropertyFilter === "All" ? "selected" : ""}>All properties</option>
+        ${PROPERTIES.map((p) => `<option value="${esc(p)}" ${state.maintPropertyFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}
+      </select>
+      <div style="flex:1;"></div>
+      <button class="btn btn-primary" onclick="openNewMaint()">${icon("plus", 16)} New request</button>
+    </div>
+    <div id="maint-results">${maintResultsHtml()}</div>
+  </div>`;
+}
+
+function maintResultsHtml() {
+  const rows = filteredMaintenance();
+  if (rows.length === 0) {
+    return `
+    <div class="empty-state">
+      <p class="title">No maintenance requests match these filters.</p>
+      <p class="sub">Try clearing filters, or log a new request.</p>
+    </div>`;
+  }
+  return `
+  <div class="table-wrap"><div class="table-scroll">
+    <table class="data">
+      <thead><tr>
+        <th>Reported</th><th>Property / unit</th><th>Issue</th><th>Priority</th><th>Assigned to</th><th>Status</th><th class="right">Actions</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((m) => `
+          <tr>
+            <td style="white-space:nowrap;">${fmtDate(m.reportedDate)}</td>
+            <td>${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</td>
+            <td>
+              <p class="cell-title">${esc(m.issue || "(no description)")}</p>
+              ${m.resolvedDate ? `<p class="cell-sub">Resolved ${fmtDate(m.resolvedDate)}</p>` : ""}
+            </td>
+            <td>${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}</td>
+            <td>${esc(m.assignedTo || "—")}</td>
+            <td>${badgeHtml(m.status, MAINT_STATUS_STYLE)}</td>
+            <td>
+              <div class="row-actions">
+                <button class="icon-btn" onclick="openEditMaint('${m.id}')" aria-label="Edit">${icon("pencil", 15)}</button>
+                <button class="icon-btn danger" onclick="askDeleteMaint('${m.id}')" aria-label="Delete">${icon("trash", 15)}</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function onMaintStatusFilter(v) {
+  state.maintStatusFilter = v;
+  document.getElementById("maint-results").innerHTML = maintResultsHtml();
+}
+function onMaintPropertyFilter(v) {
+  state.maintPropertyFilter = v;
+  document.getElementById("maint-results").innerHTML = maintResultsHtml();
+}
+
+function openNewMaint() { state.showNewMaint = true; state.editingMaint = null; state.maintFormError = ""; render(); }
+function openEditMaint(id) { state.editingMaint = state.maintenance.find((m) => m.id === id) || null; state.showNewMaint = false; state.maintFormError = ""; render(); }
+function closeMaintModal() { state.showNewMaint = false; state.editingMaint = null; state.maintFormError = ""; render(); }
+
+function onMaintPropertyChange() {
+  const prop = document.getElementById("m-property").value;
+  const units = unitsByProperty()[prop] || [];
+  const sel = document.getElementById("m-unit");
+  sel.innerHTML = `<option value="">Select unit</option>` + units.map((u) => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
+  sel.disabled = !prop;
+}
+
+function maintModalHtml() {
+  const m = state.editingMaint || {
+    property: "", unit: "", issue: "", priority: "Medium", status: "Open",
+    reportedDate: new Date().toISOString().slice(0, 10), assignedTo: "", resolvedDate: "", notes: "",
+  };
+  const units = m.property ? (unitsByProperty()[m.property] || []) : [];
+
+  return `
+  <div class="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>${state.editingMaint ? "Edit maintenance request" : "New maintenance request"}</h2>
+        <button class="icon-btn" onclick="closeMaintModal()" aria-label="Close">${icon("x", 18)}</button>
+      </div>
+      <div class="modal-body">
+        <div id="m-error">${state.maintFormError ? `<div class="form-error">${icon("alert", 16)} ${esc(state.maintFormError)}</div>` : ""}</div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Property</span>
+            <select id="m-property" class="input" onchange="onMaintPropertyChange()">
+              <option value="">Select property</option>
+              ${PROPERTIES.map((p) => `<option value="${esc(p)}" ${m.property === p ? "selected" : ""}>${esc(p)}</option>`).join("")}
+            </select>
+          </label>
+          <label><span class="field-label">Unit</span>
+            <select id="m-unit" class="input" ${!m.property ? "disabled" : ""}>
+              <option value="">Select unit</option>
+              ${units.map((u) => `<option value="${esc(u)}" ${m.unit === u ? "selected" : ""}>${esc(u)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+
+        <label><span class="field-label">Issue description</span>
+          <textarea id="m-issue" class="input" rows="2" placeholder="What's wrong, and where?">${esc(m.issue)}</textarea>
+        </label>
+
+        <div class="grid-2">
+          <label><span class="field-label">Priority</span>
+            <select id="m-priority" class="input">
+              ${MAINT_PRIORITIES.map((p) => `<option value="${esc(p)}" ${m.priority === p ? "selected" : ""}>${esc(p)}</option>`).join("")}
+            </select>
+          </label>
+          <label><span class="field-label">Status</span>
+            <select id="m-status" class="input">
+              ${MAINT_STATUSES.map((s) => `<option value="${esc(s)}" ${m.status === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <label><span class="field-label">Reported date</span><input type="date" id="m-reportedDate" class="input" value="${esc(m.reportedDate)}" /></label>
+          <label><span class="field-label">Assigned to</span><input id="m-assignedTo" class="input" placeholder="e.g. Building Engineering" value="${esc(m.assignedTo)}" /></label>
+        </div>
+
+        <label><span class="field-label">Resolved date (if applicable)</span><input type="date" id="m-resolvedDate" class="input" value="${esc(m.resolvedDate)}" /></label>
+
+        <label><span class="field-label">Notes</span>
+          <textarea id="m-notes" class="input" rows="3" placeholder="Follow-up notes, contractor details...">${esc(m.notes)}</textarea>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeMaintModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveMaint()">${state.editingMaint ? "Save changes" : "Add request"}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function saveMaint() {
+  const val = (id) => document.getElementById(id).value;
+  const form = {
+    property: val("m-property"),
+    unit: val("m-unit"),
+    issue: val("m-issue"),
+    priority: val("m-priority"),
+    status: val("m-status"),
+    reportedDate: val("m-reportedDate"),
+    assignedTo: val("m-assignedTo"),
+    resolvedDate: val("m-resolvedDate"),
+    notes: val("m-notes"),
+  };
+
+  if (!form.property) {
+    state.maintFormError = "Select a property before saving.";
+    document.getElementById("m-error").innerHTML = `<div class="form-error">${icon("alert", 16)} ${esc(state.maintFormError)}</div>`;
+    return;
+  }
+  if (!form.issue.trim()) {
+    state.maintFormError = "Describe the issue before saving.";
+    document.getElementById("m-error").innerHTML = `<div class="form-error">${icon("alert", 16)} ${esc(state.maintFormError)}</div>`;
+    return;
+  }
+
+  const id = state.editingMaint ? state.editingMaint.id : uid("M");
+  const record = { ...form, id };
+
+  if (state.editingMaint) {
+    state.maintenance = state.maintenance.map((m) => (m.id === id ? record : m));
+  } else {
+    state.maintenance = [record, ...state.maintenance];
+  }
+  state.showNewMaint = false;
+  state.editingMaint = null;
+  state.maintFormError = "";
+  render();
+
+  sb.from("plud_maintenance").upsert(maintStateToRow(record)).then(({ error }) => {
+    if (error) {
+      console.error("Supabase save (maintenance) failed:", error);
+      state.saveError = "Changes aren't saving to the database right now.";
+    } else {
+      state.saveError = "";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  });
+}
+
+function askDeleteMaint(id) { state.deletingMaintId = id; render(); }
+function cancelDeleteMaint() { state.deletingMaintId = null; render(); }
+function confirmDeleteMaint() {
+  const id = state.deletingMaintId;
+  state.maintenance = state.maintenance.filter((m) => m.id !== id);
+  state.deletingMaintId = null;
+  render();
+
+  sb.from("plud_maintenance").delete().eq("id", id).then(({ error }) => {
+    if (error) {
+      console.error("Supabase delete (maintenance) failed:", error);
+      state.saveError = "Changes aren't saving to the database right now.";
+    } else {
+      state.saveError = "";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  });
+}
+function confirmDeleteMaintDialogHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal confirm">
+      <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Delete this request?</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">This removes the maintenance record permanently. This can't be undone.</p>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn btn-outline" onclick="cancelDeleteMaint()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteMaint()">Delete</button>
       </div>
     </div>
   </div>`;

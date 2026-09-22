@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   LayoutDashboard, Users, Building2, Plus, Pencil, Trash2, X,
   Search, ChevronDown, Phone, Mail, Calendar, MapPin, Check,
-  AlertCircle, Loader2, LogOut, Settings,
+  AlertCircle, Loader2, LogOut, Settings, Wrench,
 } from "lucide-react";
 
 const PROPERTIES = [
@@ -79,6 +79,39 @@ const SEED_TENANTS = [
   },
 ];
 
+const MAINT_STATUSES = ["Open", "In Progress", "Resolved", "Cancelled"];
+const MAINT_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+const MAINT_STATUS_STYLE = {
+  "Open": { bg: "bg-rose-100", text: "text-rose-800", dot: "bg-rose-600" },
+  "In Progress": { bg: "bg-amber-100", text: "text-amber-800", dot: "bg-amber-500" },
+  "Resolved": { bg: "bg-emerald-100", text: "text-emerald-800", dot: "bg-emerald-500" },
+  "Cancelled": { bg: "bg-stone-100", text: "text-stone-700", dot: "bg-stone-400" },
+};
+const MAINT_PRIORITY_STYLE = {
+  "Low": { bg: "bg-stone-100", text: "text-stone-700", dot: "bg-stone-400" },
+  "Medium": { bg: "bg-blue-100", text: "text-blue-800", dot: "bg-blue-500" },
+  "High": { bg: "bg-amber-100", text: "text-amber-800", dot: "bg-amber-500" },
+  "Urgent": { bg: "bg-rose-100", text: "text-rose-800", dot: "bg-rose-600" },
+};
+
+const SEED_MAINTENANCE = [
+  {
+    id: "M1", property: "Vine Building", unit: "V301", issue: "Aircon unit not cooling, needs refill/service",
+    priority: "High", status: "Open", reportedDate: "2026-09-02", assignedTo: "Building Engineering",
+    resolvedDate: "", notes: "Tenant reported warm air only since Monday.",
+  },
+  {
+    id: "M2", property: "Vine Building", unit: "V102", issue: "Leaking pipe under kitchen sink",
+    priority: "Urgent", status: "In Progress", reportedDate: "2026-09-10", assignedTo: "Plumbing contractor",
+    resolvedDate: "", notes: "Contractor scheduled for site visit.",
+  },
+  {
+    id: "M3", property: "Diaz Property", unit: "Diaz Property", issue: "Flickering hallway lights",
+    priority: "Low", status: "Resolved", reportedDate: "2026-08-20", assignedTo: "In-house maintenance",
+    resolvedDate: "2026-08-22", notes: "Replaced ballast, confirmed fixed.",
+  },
+];
+
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
@@ -145,6 +178,23 @@ function listingStateToRow(l) {
   };
 }
 
+function maintRowToState(r) {
+  return {
+    id: r.id, property: r.property || "", unit: r.unit || "", issue: r.issue || "",
+    priority: r.priority || "Medium", status: r.status || "Open",
+    reportedDate: r.reported_date || "", assignedTo: r.assigned_to || "",
+    resolvedDate: r.resolved_date || "", notes: r.notes || "",
+  };
+}
+function maintStateToRow(m) {
+  return {
+    id: m.id, property: m.property || "", unit: m.unit || "", issue: m.issue || "",
+    priority: m.priority || "Medium", status: m.status || "Open",
+    reported_date: m.reportedDate || null, assigned_to: m.assignedTo || "",
+    resolved_date: m.resolvedDate || null, notes: m.notes || "",
+  };
+}
+
 // Session storage: uses window.storage when available (Claude artifact
 // preview), falls back to plain localStorage otherwise, so sign-in
 // survives a reload in both environments.
@@ -200,8 +250,9 @@ function computeListingStatus(listingKey, tenants) {
   return { label: "Available", kind: "available", count: matches.length };
 }
 
-function Badge({ status }) {
-  const s = STATUS_STYLE[status] || STATUS_STYLE["Inquired"];
+function Badge({ status, styleMap }) {
+  const map = styleMap || STATUS_STYLE;
+  const s = map[status] || map["Inquired"] || Object.values(map)[0];
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${s.bg} ${s.text}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
@@ -361,6 +412,106 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty }) {
           </button>
           <button onClick={handleSave} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800">
             {initial ? "Save changes" : "Add inquiry"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MaintModal({ initial, onClose, onSave, existingUnitsByProperty }) {
+  const [form, setForm] = useState(
+    initial || {
+      property: "", unit: "", issue: "", priority: "Medium", status: "Open",
+      reportedDate: new Date().toISOString().slice(0, 10), assignedTo: "", resolvedDate: "", notes: "",
+    }
+  );
+  const [error, setError] = useState("");
+
+  const units = existingUnitsByProperty[form.property] || [];
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const handleSave = () => {
+    if (!form.property) { setError("Select a property before saving."); return; }
+    if (!form.issue.trim()) { setError("Describe the issue before saving."); return; }
+    onSave({ ...form, id: form.id || uid("M") });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+          <h2 className="font-serif text-base font-semibold text-stone-900">
+            {initial ? "Edit maintenance request" : "New maintenance request"}
+          </h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Property">
+              <select className={inputCls} value={form.property} onChange={(e) => set({ property: e.target.value, unit: "" })}>
+                <option value="">Select property</option>
+                {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </Field>
+            <Field label="Unit">
+              <select className={inputCls} value={form.unit} onChange={(e) => set({ unit: e.target.value })} disabled={!form.property}>
+                <option value="">Select unit</option>
+                {units.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <Field label="Issue description">
+            <textarea className={inputCls} rows={2} placeholder="What's wrong, and where?" value={form.issue} onChange={(e) => set({ issue: e.target.value })} />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Priority">
+              <select className={inputCls} value={form.priority} onChange={(e) => set({ priority: e.target.value })}>
+                {MAINT_PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </Field>
+            <Field label="Status">
+              <select className={inputCls} value={form.status} onChange={(e) => set({ status: e.target.value })}>
+                {MAINT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Reported date">
+              <input type="date" className={inputCls} value={form.reportedDate} onChange={(e) => set({ reportedDate: e.target.value })} />
+            </Field>
+            <Field label="Assigned to">
+              <input className={inputCls} placeholder="e.g. Building Engineering" value={form.assignedTo} onChange={(e) => set({ assignedTo: e.target.value })} />
+            </Field>
+          </div>
+
+          <Field label="Resolved date (if applicable)">
+            <input type="date" className={inputCls} value={form.resolvedDate} onChange={(e) => set({ resolvedDate: e.target.value })} />
+          </Field>
+
+          <Field label="Notes">
+            <textarea className={inputCls} rows={3} placeholder="Follow-up notes, contractor details..." value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
+          </Field>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-stone-200 px-6 py-4">
+          <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+            Cancel
+          </button>
+          <button onClick={handleSave} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800">
+            {initial ? "Save changes" : "Add request"}
           </button>
         </div>
       </div>
@@ -607,6 +758,13 @@ export default function PLUDLeasingTracker() {
   const [showNewUser, setShowNewUser] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState(null);
 
+  const [maintenance, setMaintenance] = useState([]);
+  const [editingMaint, setEditingMaint] = useState(null);
+  const [showNewMaint, setShowNewMaint] = useState(false);
+  const [deletingMaintId, setDeletingMaintId] = useState(null);
+  const [maintStatusFilter, setMaintStatusFilter] = useState("All");
+  const [maintPropertyFilter, setMaintPropertyFilter] = useState("All");
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -651,17 +809,19 @@ export default function PLUDLeasingTracker() {
     }
   }, []);
 
-  // Tenants, listings and users live in Supabase so they persist across
-  // browsers and devices, and work on the published static site too.
+  // Tenants, listings, users and maintenance requests live in Supabase so
+  // they persist across browsers and devices, and work on the published
+  // static site too.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
       try {
-        const [tenantRows, listingRows, userRows] = await Promise.all([
+        const [tenantRows, listingRows, userRows, maintRows] = await Promise.all([
           sbSelect("plud_tenants"),
           sbSelect("plud_listings"),
           sbRequest("plud_users?select=id,username,name,role,created_at&order=created_at"),
+          sbSelect("plud_maintenance"),
         ]);
         if (cancelled) return;
         if (tenantRows.length === 0 && listingRows.length === 0) {
@@ -675,12 +835,19 @@ export default function PLUDLeasingTracker() {
           setTenants(tenantRows.map(tenantRowToState));
           setListings(listingRows.map(listingRowToState));
         }
+        if (maintRows.length === 0) {
+          await sbUpsert("plud_maintenance", SEED_MAINTENANCE.map(maintStateToRow));
+          setMaintenance(SEED_MAINTENANCE);
+        } else {
+          setMaintenance(maintRows.map(maintRowToState));
+        }
         setUsers(userRows);
         setSaveError("");
       } catch (e) {
         console.error("Supabase load failed:", e);
         setTenants(SEED_TENANTS);
         setListings(SEED_LISTINGS);
+        setMaintenance(SEED_MAINTENANCE);
         setUsers([]);
         setSaveError("Couldn't reach the database — showing local sample data, changes won't be saved.");
       } finally {
@@ -765,6 +932,26 @@ export default function PLUDLeasingTracker() {
       .catch((e) => { console.error("Supabase save (listing) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
+  const saveMaint = useCallback((m) => {
+    setMaintenance((prev) => {
+      const exists = prev.some((p) => p.id === m.id);
+      return exists ? prev.map((p) => (p.id === m.id ? m : p)) : [m, ...prev];
+    });
+    setEditingMaint(null);
+    setShowNewMaint(false);
+    sbUpsert("plud_maintenance", [maintStateToRow(m)])
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase save (maintenance) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+  }, []);
+
+  const deleteMaint = useCallback((id) => {
+    setMaintenance((prev) => prev.filter((m) => m.id !== id));
+    setDeletingMaintId(null);
+    sbDelete("plud_maintenance", id)
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase delete (maintenance) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+  }, []);
+
   const stats = useMemo(() => {
     const totalInquiries = tenants.length;
     const awarded = tenants.filter((t) => t.status === "Awarded/ Leased").length;
@@ -839,6 +1026,14 @@ export default function PLUDLeasingTracker() {
       .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
   }, [tenants, tenantStatusFilter, tenantPropertyFilter, tenantSearch]);
 
+  const filteredMaintenance = useMemo(() => {
+    return maintenance
+      .filter((m) => (maintStatusFilter === "All" ? true : m.status === maintStatusFilter))
+      .filter((m) => (maintPropertyFilter === "All" ? true : m.property === maintPropertyFilter))
+      .slice()
+      .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
+  }, [maintenance, maintStatusFilter, maintPropertyFilter]);
+
   if (userLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50">
@@ -867,6 +1062,7 @@ export default function PLUDLeasingTracker() {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "tenants", label: "Prospective tenants", icon: Users },
     { id: "listings", label: "PLUD listings", icon: Building2 },
+    { id: "maintenance", label: "Maintenance", icon: Wrench },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -1211,6 +1407,77 @@ export default function PLUDLeasingTracker() {
             ))}
           </div>
         )}
+        {tab === "maintenance" && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <select className={`${inputCls} w-auto`} value={maintStatusFilter} onChange={(e) => setMaintStatusFilter(e.target.value)}>
+                <option value="All">All statuses</option>
+                {MAINT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select className={`${inputCls} w-auto`} value={maintPropertyFilter} onChange={(e) => setMaintPropertyFilter(e.target.value)}>
+                <option value="All">All properties</option>
+                {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <div className="flex-1" />
+              <button
+                onClick={() => setShowNewMaint(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800"
+              >
+                <Plus size={16} /> New request
+              </button>
+            </div>
+
+            {filteredMaintenance.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
+                <p className="text-sm font-medium text-stone-700">No maintenance requests match these filters.</p>
+                <p className="mt-1 text-xs text-stone-500">Try clearing filters, or log a new request.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Reported</th>
+                        <th className="px-4 py-3 font-medium">Property / unit</th>
+                        <th className="px-4 py-3 font-medium">Issue</th>
+                        <th className="px-4 py-3 font-medium">Priority</th>
+                        <th className="px-4 py-3 font-medium">Assigned to</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {filteredMaintenance.map((m) => (
+                        <tr key={m.id} className="hover:bg-stone-50">
+                          <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(m.reportedDate)}</td>
+                          <td className="px-4 py-3 text-stone-600">{m.property}{m.unit ? ` · ${m.unit}` : ""}</td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-stone-900">{m.issue || "(no description)"}</p>
+                            {m.resolvedDate && <p className="text-xs text-stone-500">Resolved {fmtDate(m.resolvedDate)}</p>}
+                          </td>
+                          <td className="px-4 py-3"><Badge status={m.priority} styleMap={MAINT_PRIORITY_STYLE} /></td>
+                          <td className="px-4 py-3 text-stone-600">{m.assignedTo || "—"}</td>
+                          <td className="px-4 py-3"><Badge status={m.status} styleMap={MAINT_STATUS_STYLE} /></td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-1">
+                              <button onClick={() => setEditingMaint(m)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-amber-700" aria-label="Edit">
+                                <Pencil size={15} />
+                              </button>
+                              <button onClick={() => setDeletingMaintId(m.id)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {tab === "settings" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between gap-3">
@@ -1307,6 +1574,24 @@ export default function PLUDLeasingTracker() {
           confirmLabel="Remove"
           onCancel={() => setDeletingUserId(null)}
           onConfirm={() => deleteUser(deletingUserId)}
+        />
+      )}
+
+      {(showNewMaint || editingMaint) && (
+        <MaintModal
+          initial={editingMaint}
+          onClose={() => { setEditingMaint(null); setShowNewMaint(false); }}
+          onSave={saveMaint}
+          existingUnitsByProperty={unitsByProperty}
+        />
+      )}
+
+      {deletingMaintId && (
+        <ConfirmDialog
+          title="Delete this request?"
+          body="This removes the maintenance record permanently. This can't be undone."
+          onCancel={() => setDeletingMaintId(null)}
+          onConfirm={() => deleteMaint(deletingMaintId)}
         />
       )}
     </div>
