@@ -1578,9 +1578,18 @@ export default function PLUDLeasingTracker() {
                             </td>
                             <td className="px-4 py-3 text-right text-stone-600">{l.count}</td>
                             <td className="px-4 py-3 text-right">
-                              <button onClick={() => setEditingListing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-amber-700" aria-label="Edit">
-                                <Pencil size={15} />
-                              </button>
+                              {(!l.floorArea && !l.askingRate) ? (
+                                <button
+                                  onClick={() => setEditingListing(l)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-amber-700 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                                >
+                                  <Plus size={13} /> Add details
+                                </button>
+                              ) : (
+                                <button onClick={() => setEditingListing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-amber-700" aria-label="Edit">
+                                  <Pencil size={15} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
