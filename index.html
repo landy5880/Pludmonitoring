@@ -435,6 +435,7 @@ const state = {
   reportType: "pipeline",
   reportFrom: "",
   reportTo: "",
+  reportSearch: "",
 };
 
 /* ---------------------------------------------------------------------- */
@@ -494,6 +495,7 @@ function listingRowToState(r) {
     floorArea: r.floor_area === null ? "" : r.floor_area,
     askingRate: r.asking_rate === null ? "" : r.asking_rate,
     notes: r.notes || "",
+    createdAt: r.created_at ? r.created_at.slice(0, 10) : "",
   };
 }
 function listingStateToRow(l) {
@@ -873,12 +875,9 @@ function dashboardHtml() {
   const maxStage = Math.max(1, ...s.byStage.map((x) => x.count));
   return `
   <div class="stack">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div>
-        <h1 style="font-size:17px;font-weight:600;margin:0;color:var(--stone-900);">Dashboard</h1>
-        <p style="font-size:13px;color:var(--stone-500);margin:2px 0 0;">Pipeline health and listings inventory at a glance.</p>
-      </div>
-      <button class="btn btn-primary" style="flex-shrink:0;" onclick="openNewTenant()">${icon("plus", 16)} New inquiry</button>
+    <div>
+      <h1 style="font-size:17px;font-weight:600;margin:0;color:var(--stone-900);">Dashboard</h1>
+      <p style="font-size:13px;color:var(--stone-500);margin:2px 0 0;">Pipeline health and listings inventory at a glance.</p>
     </div>
 
     <section>
@@ -1456,21 +1455,30 @@ function inReportDateRange(dateStr) {
   if (state.reportTo && dateStr > state.reportTo) return false;
   return true;
 }
+function matchesReportSearch(fields) {
+  if (!state.reportSearch.trim()) return true;
+  const q = state.reportSearch.toLowerCase();
+  return fields.some((v) => (v || "").toString().toLowerCase().includes(q));
+}
 
 function reportPipelineRows() {
   return state.tenants
     .filter((t) => inReportDateRange(t.dateInquired))
+    .filter((t) => matchesReportSearch([t.brand, t.concept, t.contact, t.property, t.unit, t.email, t.category, t.status]))
     .slice()
     .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
 }
 function reportMaintenanceRows() {
   return state.maintenance
     .filter((m) => inReportDateRange(m.reportedDate))
+    .filter((m) => matchesReportSearch([m.issue, m.property, m.unit, m.assignedTo, m.priority, m.status, m.notes]))
     .slice()
     .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
 }
 function reportOccupancyRows() {
-  return listingsComputed();
+  return listingsComputed()
+    .filter((l) => inReportDateRange(l.createdAt))
+    .filter((l) => matchesReportSearch([l.property, l.unit, l.label, l.notes]));
 }
 
 function reportsTabHtml() {
@@ -1492,15 +1500,18 @@ function reportsTabHtml() {
       ${REPORT_TYPES.map((r) => `<button class="report-type-tab ${type === r.id ? "active" : ""}" onclick="setReportType('${r.id}')">${r.label}</button>`).join("")}
     </div>
 
-    ${type !== "occupancy" ? `
     <div class="toolbar no-print">
+      <div class="search-wrap" style="flex:1;min-width:200px;">
+        ${icon("search", 16)}
+        <input id="report-search" class="input" placeholder="Search this report..." value="${esc(state.reportSearch)}" oninput="onReportSearch(this.value)" />
+      </div>
       <label style="font-size:12px;color:var(--stone-600);display:flex;align-items:center;gap:6px;">From
         <input type="date" class="input" style="width:auto;" value="${esc(state.reportFrom)}" onchange="onReportDateChange('reportFrom', this.value)" />
       </label>
       <label style="font-size:12px;color:var(--stone-600);display:flex;align-items:center;gap:6px;">To
         <input type="date" class="input" style="width:auto;" value="${esc(state.reportTo)}" onchange="onReportDateChange('reportTo', this.value)" />
       </label>
-    </div>` : ""}
+    </div>
 
     <div id="report-body">${reportBodyHtml()}</div>
   </div>`;
@@ -1611,6 +1622,11 @@ function setReportType(id) {
 }
 function onReportDateChange(field, value) {
   state[field] = value;
+  const el = document.getElementById("report-body");
+  if (el) el.innerHTML = reportBodyHtml();
+}
+function onReportSearch(value) {
+  state.reportSearch = value;
   const el = document.getElementById("report-body");
   if (el) el.innerHTML = reportBodyHtml();
 }

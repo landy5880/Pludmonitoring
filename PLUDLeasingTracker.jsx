@@ -191,6 +191,7 @@ function listingRowToState(r) {
     floorArea: r.floor_area === null ? "" : r.floor_area,
     askingRate: r.asking_rate === null ? "" : r.asking_rate,
     notes: r.notes || "",
+    createdAt: r.created_at ? r.created_at.slice(0, 10) : "",
   };
 }
 function listingStateToRow(l) {
@@ -832,6 +833,7 @@ export default function PLUDLeasingTracker() {
   const [reportType, setReportType] = useState("pipeline");
   const [reportFrom, setReportFrom] = useState("");
   const [reportTo, setReportTo] = useState("");
+  const [reportSearch, setReportSearch] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -1132,21 +1134,33 @@ export default function PLUDLeasingTracker() {
     return true;
   }, [reportFrom, reportTo]);
 
+  const matchesReportSearch = useCallback((fields) => {
+    if (!reportSearch.trim()) return true;
+    const q = reportSearch.toLowerCase();
+    return fields.some((v) => (v || "").toString().toLowerCase().includes(q));
+  }, [reportSearch]);
+
   const reportPipelineRows = useMemo(() => {
     return tenants
       .filter((t) => inReportDateRange(t.dateInquired))
+      .filter((t) => matchesReportSearch([t.brand, t.concept, t.contact, t.property, t.unit, t.email, t.category, t.status]))
       .slice()
       .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
-  }, [tenants, inReportDateRange]);
+  }, [tenants, inReportDateRange, matchesReportSearch]);
 
   const reportMaintenanceRows = useMemo(() => {
     return maintenance
       .filter((m) => inReportDateRange(m.reportedDate))
+      .filter((m) => matchesReportSearch([m.issue, m.property, m.unit, m.assignedTo, m.priority, m.status, m.notes]))
       .slice()
       .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
-  }, [maintenance, inReportDateRange]);
+  }, [maintenance, inReportDateRange, matchesReportSearch]);
 
-  const reportOccupancyRows = listingsComputed;
+  const reportOccupancyRows = useMemo(() => {
+    return listingsComputed
+      .filter((l) => inReportDateRange(l.createdAt))
+      .filter((l) => matchesReportSearch([l.property, l.unit, l.label, l.notes]));
+  }, [listingsComputed, inReportDateRange, matchesReportSearch]);
 
   const exportReportCsv = useCallback(() => {
     if (reportType === "pipeline") {
@@ -1255,17 +1269,9 @@ export default function PLUDLeasingTracker() {
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">
         {tab === "dashboard" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h1 className="font-serif text-lg font-semibold text-stone-900">Dashboard</h1>
-                <p className="text-sm text-stone-500">Pipeline health and listings inventory at a glance.</p>
-              </div>
-              <button
-                onClick={() => { setShowNewTenant(true); }}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-800"
-              >
-                <Plus size={16} /> New inquiry
-              </button>
+            <div>
+              <h1 className="font-serif text-lg font-semibold text-stone-900">Dashboard</h1>
+              <p className="text-sm text-stone-500">Pipeline health and listings inventory at a glance.</p>
             </div>
 
             <section>
@@ -1688,18 +1694,25 @@ export default function PLUDLeasingTracker() {
               ))}
             </div>
 
-            {reportType !== "occupancy" && (
-              <div className="no-print mb-4 flex flex-wrap items-center gap-4">
-                <label className="flex items-center gap-2 text-xs text-stone-600">
-                  From
-                  <input type="date" className={`${inputCls} w-auto`} value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} />
-                </label>
-                <label className="flex items-center gap-2 text-xs text-stone-600">
-                  To
-                  <input type="date" className={`${inputCls} w-auto`} value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
-                </label>
+            <div className="no-print mb-4 flex flex-wrap items-center gap-4">
+              <div className="relative min-w-[200px] flex-1">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  className={`${inputCls} pl-9`}
+                  placeholder="Search this report..."
+                  value={reportSearch}
+                  onChange={(e) => setReportSearch(e.target.value)}
+                />
               </div>
-            )}
+              <label className="flex items-center gap-2 text-xs text-stone-600">
+                From
+                <input type="date" className={`${inputCls} w-auto`} value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} />
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-600">
+                To
+                <input type="date" className={`${inputCls} w-auto`} value={reportTo} onChange={(e) => setReportTo(e.target.value)} />
+              </label>
+            </div>
 
             {reportType === "pipeline" && (
               <>
