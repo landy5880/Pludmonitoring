@@ -651,7 +651,7 @@ function ListOptionPanel({ title, fixedOptions, customOptions, onAdd, onDeleteId
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
         <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
-          Add
+          <Plus size={14} /> Add
         </button>
       </div>
       {error && (
@@ -706,7 +706,7 @@ function ConceptOptionsPanel({ categories, customConcepts, selectedCategory, onS
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
         <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
-          Add
+          <Plus size={14} /> Add
         </button>
       </div>
       {error && (
@@ -2104,17 +2104,9 @@ export default function PLUDLeasingTracker() {
         )}
         {tab === "settings" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h1 className="font-serif text-lg font-semibold text-stone-900">Settings</h1>
-                <p className="text-sm text-stone-500">Manage who can sign in to this tracker.</p>
-              </div>
-              <button
-                onClick={() => setShowNewUser(true)}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
-              >
-                <Plus size={16} /> Add user
-              </button>
+            <div>
+              <h1 className="font-serif text-lg font-semibold text-stone-900">Settings</h1>
+              <p className="text-sm text-stone-500">Manage sign-in, users, and the category/concept/status options used across the pipeline.</p>
             </div>
 
             <section className="rounded-lg border border-stone-200 bg-white p-4">
@@ -2135,6 +2127,66 @@ export default function PLUDLeasingTracker() {
               </div>
               <p className="mt-2.5 text-xs text-stone-500">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
             </section>
+
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="font-serif text-sm font-semibold text-stone-900">Users</h2>
+                <button
+                  onClick={() => setShowNewUser(true)}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
+                >
+                  <Plus size={16} /> Add user
+                </button>
+              </div>
+              {users.length === 0 ? (
+                <p className="py-6 text-center text-sm text-stone-500">No users found.</p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-stone-200">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Username</th>
+                          <th className="px-4 py-3 font-medium">Name</th>
+                          <th className="px-4 py-3 font-medium">Role</th>
+                          <th className="px-4 py-3 font-medium">Added</th>
+                          <th className="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {users.map((u) => (
+                          <tr key={u.id} className="hover:bg-stone-50">
+                            <td className="px-4 py-3 font-medium text-stone-900">
+                              {u.username}
+                              {user && user.id === u.id && <span className="ml-1 font-normal text-stone-400">(you)</span>}
+                            </td>
+                            <td className="px-4 py-3 text-stone-600">{u.name || "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{u.role || "—"}</td>
+                            <td className="px-4 py-3 text-stone-600">{fmtDate(u.created_at ? u.created_at.slice(0, 10) : "")}</td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => setDeletingUserId(u.id)}
+                                disabled={users.length <= 1}
+                                title={users.length <= 1 ? "At least one user must remain" : undefined}
+                                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
+                                aria-label="Delete"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <div className="mt-1">
+              <h2 className="font-serif text-sm font-semibold text-stone-900">Pipeline options</h2>
+              <p className="text-xs text-stone-500">Categories, concepts, and statuses available when logging a tenant inquiry.</p>
+            </div>
 
             <ListOptionPanel
               title="Categories"
@@ -2166,50 +2218,6 @@ export default function PLUDLeasingTracker() {
               placeholder="Add status..."
               note={'New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.'}
             />
-
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
-              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Users</h2>
-              {users.length === 0 ? (
-                <p className="py-6 text-center text-sm text-stone-500">No users found.</p>
-              ) : (
-                <div className="overflow-hidden rounded-lg border border-stone-200">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
-                        <tr>
-                          <th className="px-4 py-3 font-medium">Username</th>
-                          <th className="px-4 py-3 font-medium">Name</th>
-                          <th className="px-4 py-3 font-medium">Role</th>
-                          <th className="px-4 py-3 font-medium">Added</th>
-                          <th className="px-4 py-3 font-medium text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {users.map((u) => (
-                          <tr key={u.id} className="hover:bg-stone-50">
-                            <td className="px-4 py-3 font-medium text-stone-900">{u.username}</td>
-                            <td className="px-4 py-3 text-stone-600">{u.name || "—"}</td>
-                            <td className="px-4 py-3 text-stone-600">{u.role || "—"}</td>
-                            <td className="px-4 py-3 text-stone-600">{fmtDate(u.created_at ? u.created_at.slice(0, 10) : "")}</td>
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => setDeletingUserId(u.id)}
-                                disabled={users.length <= 1}
-                                title={users.length <= 1 ? "At least one user must remain" : undefined}
-                                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
-                                aria-label="Delete"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </section>
           </div>
         )}
         </main>
