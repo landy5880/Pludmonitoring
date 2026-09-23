@@ -174,6 +174,28 @@
   .kanban-card-sub{font-size:11.5px; color:var(--stone-500); margin:0 0 2px;}
   .kanban-card-tag{display:inline-block; font-size:10.5px; color:var(--teal-700); background:var(--amber-50); border-radius:4px; padding:1px 6px; margin-top:3px;}
 
+  /* detail pages */
+  .btn-link-back{display:inline-flex; align-items:center; gap:5px; background:none; border:none; color:var(--stone-500); font-size:13px; font-weight:500; cursor:pointer; padding:0;}
+  .btn-link-back:hover{color:var(--stone-800);}
+  .detail-header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .detail-title{font-family:var(--font-serif); font-size:22px; font-weight:600; margin:0; color:var(--stone-900);}
+  .detail-sub{font-size:13.5px; color:var(--stone-500); margin:3px 0 0;}
+  .detail-dl{display:grid; grid-template-columns:auto 1fr; gap:8px 14px; margin:0; font-size:13.5px;}
+  .detail-dl dt{color:var(--stone-500); font-weight:500;}
+  .detail-dl dd{margin:0; color:var(--stone-800);}
+  .follow-up-status{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; margin:10px 0 0; padding:4px 10px; border-radius:999px;}
+  .follow-up-status.overdue{background:var(--rose-100); color:var(--rose-800);}
+  .follow-up-status.due-today{background:var(--amber-100); color:var(--amber-800);}
+  .follow-up-status.upcoming{background:var(--blue-100); color:var(--blue-800);}
+  .add-activity-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+  .timeline{display:flex; flex-direction:column;}
+  .timeline-item{display:flex; gap:12px; padding:10px 0; border-top:1px solid var(--stone-100);}
+  .timeline-item:first-child{border-top:none;}
+  .timeline-dot{width:8px; height:8px; border-radius:999px; background:var(--teal-700); margin-top:5px; flex-shrink:0;}
+  .timeline-title{font-size:13.5px; font-weight:600; color:var(--stone-800); margin:0;}
+  .timeline-note{font-weight:400; color:var(--stone-600);}
+  .timeline-meta{font-size:11.5px; color:var(--stone-400); margin:2px 0 0;}
+
   .status-pill{display:inline-flex; align-items:center; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:500;}
   .status-pill.available{background:var(--emerald-100); color:var(--emerald-800);}
   .status-pill.occupied{background:var(--stone-200); color:var(--stone-700);}
@@ -204,6 +226,8 @@
   table.data td.right{text-align:right;}
   table.data tbody tr:hover{background:var(--stone-50);}
   .cell-title{margin:0; font-weight:500; color:var(--stone-900);}
+  .cell-link{background:none; border:none; padding:0; text-align:left; cursor:pointer; display:block; width:100%;}
+  .cell-link:hover .cell-title{color:var(--teal-700); text-decoration:underline;}
   .cell-sub{margin:2px 0 0; font-size:12px; color:var(--stone-500);}
   .row-actions{display:flex; justify-content:flex-end; gap:4px;}
   .link-count{background:none; border:none; padding:0; font-size:14px; font-weight:600; color:var(--teal-700); cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
@@ -373,6 +397,7 @@ const SEED_TENANTS = [
 ];
 
 const MAINT_STATUSES = ["Open", "In Progress", "Resolved", "Cancelled"];
+const ACTIVITY_TYPES = ["Call", "Email", "Meeting", "Unit Viewing", "Food Tasting", "Follow-up", "Requirement Submitted", "Internal Note"];
 const MAINT_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 const MAINT_STATUS_STYLE = { "Open": "rose", "In Progress": "amber", "Resolved": "emerald", "Cancelled": "slate" };
 const MAINT_PRIORITY_STYLE = { "Low": "slate", "Medium": "blue", "High": "amber", "Urgent": "rose" };
@@ -413,6 +438,12 @@ const fmtDate = (d) => {
   const dt = new Date(d + "T00:00:00");
   if (isNaN(dt)) return d;
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+const fmtDateTime = (iso) => {
+  if (!iso) return "—";
+  const dt = new Date(iso);
+  if (isNaN(dt)) return iso;
+  return dt.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 };
 const fmtMoney = (n) => (n || n === 0 ? `₱${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—");
 
@@ -514,6 +545,11 @@ const state = {
   lastSyncedAt: null,
   tenantView: "table",
   draggingTenantId: null,
+  detailTenantId: null,
+  activities: [],
+  activitiesLoading: false,
+  newActivityType: "Call",
+  newActivityNote: "",
 };
 
 function allCategories() {
@@ -571,6 +607,7 @@ function tenantRowToState(r) {
     concept: r.concept || "", contact: r.contact || "", mobile: r.mobile || "", email: r.email || "",
     sqm: r.sqm || "", property: r.property || "", unit: r.unit || "", remarks: r.remarks || "",
     unitViewing: r.unit_viewing || "", foodTasting: r.food_tasting || "", status: r.status || "Inquired",
+    nextFollowUp: r.next_follow_up || "", assignedTo: r.assigned_to || "",
   };
 }
 function tenantStateToRow(t) {
@@ -579,6 +616,7 @@ function tenantStateToRow(t) {
     concept: t.concept || "", contact: t.contact || "", mobile: t.mobile || "", email: t.email || "",
     sqm: t.sqm || "", property: t.property || "", unit: t.unit || "", remarks: t.remarks || "",
     unit_viewing: t.unitViewing || null, food_tasting: t.foodTasting || null, status: t.status || "Inquired",
+    next_follow_up: t.nextFollowUp || null, assigned_to: t.assignedTo || "",
   };
 }
 function listingRowToState(r) {
@@ -989,7 +1027,7 @@ function appShellHtml() {
 
 function tabContentHtml() {
   if (state.tab === "dashboard") return dashboardHtml();
-  if (state.tab === "tenants") return tenantsTabHtml();
+  if (state.tab === "tenants") return state.detailTenantId ? tenantDetailHtml() : tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
   if (state.tab === "maintenance") return maintenanceTabHtml();
   if (state.tab === "reports") return reportsTabHtml();
@@ -1092,7 +1130,7 @@ function dashboardHtml() {
         ${s.needsFollowUp.length === 0 ? `<p class="empty-note">Nothing stale — every active inquiry has moved in the last two weeks.</p>` : `
           <div>
             ${s.needsFollowUp.map((t) => `
-              <button class="pipeline-item" onclick="openEditTenant('${t.id}')">
+              <button class="pipeline-item" onclick="openTenantDetail('${t.id}')">
                 <div class="pipeline-main" style="min-width:0;">
                   <p>${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
                   <p class="pipeline-sub">${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""} · ${esc(t.contact)}</p>
@@ -1107,7 +1145,7 @@ function dashboardHtml() {
         ${s.upcoming.length === 0 ? `<p class="empty-note">No viewings or tastings scheduled in the next 7 days.</p>` : `
           <div>
             ${s.upcoming.map((u) => `
-              <button class="pipeline-item" onclick="openEditTenant('${u.tenant.id}')">
+              <button class="pipeline-item" onclick="openTenantDetail('${u.tenant.id}')">
                 <div class="pipeline-main" style="min-width:0;">
                   <p>${esc(u.tenant.brand || u.tenant.concept || "(no brand/concept yet)")}</p>
                   <p class="pipeline-sub">${esc(u.label)} · ${esc(u.tenant.property)}${u.tenant.unit ? " · " + esc(u.tenant.unit) : ""}</p>
@@ -1151,7 +1189,7 @@ function dashboardHtml() {
       ${s.pipeline.length === 0 ? `<p class="empty-note">No active inquiries right now.</p>` : `
         <div>
           ${s.pipeline.map((t) => `
-            <button class="pipeline-item" onclick="openEditTenant('${t.id}')">
+            <button class="pipeline-item" onclick="openTenantDetail('${t.id}')">
               <div class="pipeline-main" style="min-width:0;">
                 <p>${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
                 <p class="pipeline-sub">${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""} · ${esc(t.contact)} · ${fmtDate(t.dateInquired)}</p>
@@ -1253,8 +1291,10 @@ function tenantTableHtml() {
           <tr>
             <td style="white-space:nowrap;">${fmtDate(t.dateInquired)}</td>
             <td>
-              <p class="cell-title">${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
-              <p class="cell-sub">${esc(t.concept)}</p>
+              <button class="cell-link" onclick="openTenantDetail('${t.id}')">
+                <p class="cell-title">${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
+                <p class="cell-sub">${esc(t.concept)}</p>
+              </button>
             </td>
             <td>${esc(t.category)}</td>
             <td>${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</td>
@@ -1289,7 +1329,7 @@ function tenantKanbanHtml() {
         </div>
         <div class="kanban-col-body">
           ${col.cards.length === 0 ? `<p class="kanban-empty">No inquiries</p>` : col.cards.map((t) => `
-            <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${t.id}')" ondragend="onKanbanDragEnd(event)" onclick="openEditTenant('${t.id}')">
+            <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${t.id}')" ondragend="onKanbanDragEnd(event)" onclick="openTenantDetail('${t.id}')">
               <p class="kanban-card-title">${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
               <p class="kanban-card-sub">${esc(t.contact)}</p>
               <p class="kanban-card-sub">${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</p>
@@ -1321,10 +1361,12 @@ function onKanbanDrop(e, newStatus) {
   if (!id) return;
   const t = state.tenants.find((x) => x.id === id);
   if (!t || t.status === newStatus) return;
+  const prevStatus = t.status;
   const updated = { ...t, status: newStatus };
   state.tenants = state.tenants.map((x) => (x.id === id ? updated : x));
   state.draggingTenantId = null;
   document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
+  logActivity("tenant", id, "Status Change", `${prevStatus} → ${newStatus}`);
 
   sb.from("plud_tenants").upsert(tenantStateToRow(updated)).then(({ error }) => {
     if (error) {
@@ -1490,10 +1532,161 @@ function tenantModalHtml() {
 function openNewTenant() { state.showNewTenant = true; state.editingTenant = null; state.formError = ""; render(); }
 function openEditTenant(id) { state.editingTenant = state.tenants.find((t) => t.id === id) || null; state.showNewTenant = false; state.formError = ""; render(); }
 
+/* ---------------------------------------------------------------------- */
+/* Activity log & Prospect detail page                                    */
+/* ---------------------------------------------------------------------- */
+function activityRowToState(r) {
+  return { id: r.id, entityType: r.entity_type, entityId: r.entity_id, activityType: r.activity_type, note: r.note || "", createdBy: r.created_by || "", createdAt: r.created_at };
+}
+
+async function logActivity(entityType, entityId, activityType, note) {
+  const row = { id: uid("ACT"), entity_type: entityType, entity_id: entityId, activity_type: activityType, note: note || "", created_by: (state.user && state.user.name) || "" };
+  try {
+    const { error } = await sb.from("plud_activities").insert(row);
+    if (error) throw error;
+    if (state.detailTenantId === entityId) {
+      state.activities = [activityRowToState(row), ...state.activities];
+      const el = document.getElementById("activity-timeline");
+      if (el) el.innerHTML = activityTimelineHtml();
+    }
+  } catch (e) {
+    console.error("Log activity failed:", e);
+  }
+}
+
+async function openTenantDetail(id) {
+  state.detailTenantId = id;
+  state.activities = [];
+  state.activitiesLoading = true;
+  state.newActivityType = "Call";
+  state.newActivityNote = "";
+  render();
+  try {
+    const { data, error } = await sb.from("plud_activities").select("*").eq("entity_id", id).order("created_at", { ascending: false });
+    if (error) throw error;
+    state.activities = data.filter((r) => r.entity_type === "tenant").map(activityRowToState);
+  } catch (e) {
+    console.error("Load activities failed:", e);
+  }
+  state.activitiesLoading = false;
+  render();
+}
+function closeTenantDetail() {
+  state.detailTenantId = null;
+  state.activities = [];
+  render();
+}
+
+function activityTimelineHtml() {
+  if (state.activitiesLoading) return `<p class="empty-note">Loading activity...</p>`;
+  if (state.activities.length === 0) return `<p class="empty-note">No activity logged yet.</p>`;
+  return `
+  <div class="timeline">
+    ${state.activities.map((a) => `
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-body">
+          <p class="timeline-title">${esc(a.activityType)}${a.note ? `<span class="timeline-note"> — ${esc(a.note)}</span>` : ""}</p>
+          <p class="timeline-meta">${fmtDateTime(a.createdAt)}${a.createdBy ? ` · by ${esc(a.createdBy)}` : ""}</p>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+async function submitNewActivity() {
+  const type = document.getElementById("new-activity-type").value;
+  const note = document.getElementById("new-activity-note").value.trim();
+  await logActivity("tenant", state.detailTenantId, type, note);
+  document.getElementById("new-activity-note").value = "";
+}
+
+function tenantDetailHtml() {
+  const t = state.tenants.find((x) => x.id === state.detailTenantId);
+  if (!t) return `<p class="empty-note">This inquiry could not be found.</p>`;
+  return `
+  <div class="stack">
+    <button class="btn-link-back no-print" onclick="closeTenantDetail()">${icon("x", 14)} Back to Prospective tenants</button>
+
+    <div class="detail-header">
+      <div>
+        <h1 class="detail-title">${esc(t.brand || t.concept || "(no brand/concept yet)")}</h1>
+        <p class="detail-sub">${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${badgeHtml(t.status)}
+        <button class="btn btn-outline" onclick="openEditTenant('${t.id}')">${icon("pencil", 14)} Edit</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <section class="panel">
+        <h2 class="section-title">Contact information</h2>
+        <dl class="detail-dl">
+          <dt>Contact person</dt><dd>${esc(t.contact) || "—"}</dd>
+          <dt>Mobile</dt><dd>${esc(t.mobile) || "—"}</dd>
+          <dt>Email</dt><dd>${esc(t.email) || "—"}</dd>
+        </dl>
+      </section>
+      <section class="panel">
+        <h2 class="section-title">Leasing information</h2>
+        <dl class="detail-dl">
+          <dt>Category</dt><dd>${esc(t.category) || "—"}</dd>
+          <dt>Concept</dt><dd>${esc(t.concept) || "—"}</dd>
+          <dt>Space requirement</dt><dd>${esc(t.sqm) || "—"}</dd>
+          <dt>Date inquired</dt><dd>${fmtDate(t.dateInquired)}</dd>
+        </dl>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2 class="section-title">Follow-up</h2>
+      <div class="grid-2">
+        <label><span class="field-label">Next follow-up date</span><input type="date" id="d-nextFollowUp" class="input" value="${esc(t.nextFollowUp)}" onchange="saveFollowUpFields()" /></label>
+        <label><span class="field-label">Assigned to</span><input id="d-assignedTo" class="input" placeholder="e.g. Maria" value="${esc(t.assignedTo)}" onchange="saveFollowUpFields()" /></label>
+      </div>
+      ${t.nextFollowUp ? (t.nextFollowUp < new Date().toISOString().slice(0, 10)
+        ? `<p class="follow-up-status overdue">${icon("alert", 13)} Overdue</p>`
+        : t.nextFollowUp === new Date().toISOString().slice(0, 10)
+          ? `<p class="follow-up-status due-today">${icon("alert", 13)} Due today</p>`
+          : `<p class="follow-up-status upcoming">Upcoming</p>`) : ""}
+    </section>
+
+    <section class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h2 class="section-title" style="margin:0;">Activity timeline</h2>
+      </div>
+      <div class="add-activity-row no-print">
+        <select id="new-activity-type" class="input" style="width:auto;">
+          ${ACTIVITY_TYPES.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join("")}
+        </select>
+        <input id="new-activity-note" class="input" placeholder="Add a note (optional)" onkeydown="if(event.key==='Enter'){submitNewActivity();}" />
+        <button class="btn btn-primary" onclick="submitNewActivity()">${icon("plus", 14)} Add activity</button>
+      </div>
+      <div id="activity-timeline">${activityTimelineHtml()}</div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Remarks</h2>
+      <p style="font-size:13px;color:var(--stone-600);white-space:pre-wrap;margin:0;">${esc(t.remarks) || "—"}</p>
+    </section>
+  </div>`;
+}
+
+function saveFollowUpFields() {
+  const t = state.tenants.find((x) => x.id === state.detailTenantId);
+  if (!t) return;
+  const updated = { ...t, nextFollowUp: document.getElementById("d-nextFollowUp").value, assignedTo: document.getElementById("d-assignedTo").value };
+  state.tenants = state.tenants.map((x) => (x.id === t.id ? updated : x));
+  sb.from("plud_tenants").upsert(tenantStateToRow(updated)).then(({ error }) => {
+    if (error) console.error("Save follow-up fields failed:", error);
+  });
+}
+
 function goToTenantsForListing(listingId) {
   const l = state.listings.find((x) => x.id === listingId);
   if (!l) return;
   state.tab = "tenants";
+  state.detailTenantId = null;
   state.tenantPropertyFilter = l.property;
   state.tenantStatusFilter = "All";
   state.tenantSearch = l.unit;
@@ -1545,7 +1738,12 @@ function saveTenant() {
   }
 
   const id = state.editingTenant ? state.editingTenant.id : uid("T");
-  const record = { ...form, id };
+  const prevStatus = state.editingTenant ? state.editingTenant.status : null;
+  const record = {
+    ...form, id,
+    nextFollowUp: state.editingTenant ? state.editingTenant.nextFollowUp : "",
+    assignedTo: state.editingTenant ? state.editingTenant.assignedTo : "",
+  };
 
   if (state.editingTenant) {
     state.tenants = state.tenants.map((t) => (t.id === id ? record : t));
@@ -1556,6 +1754,10 @@ function saveTenant() {
   state.editingTenant = null;
   state.formError = "";
   render();
+
+  if (prevStatus && prevStatus !== record.status) {
+    logActivity("tenant", id, "Status Change", `${prevStatus} → ${record.status}`);
+  }
 
   sb.from("plud_tenants").upsert(tenantStateToRow(record)).then(({ error }) => {
     if (error) {

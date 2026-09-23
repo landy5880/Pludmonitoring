@@ -80,6 +80,7 @@ const SEED_TENANTS = [
 ];
 
 const MAINT_STATUSES = ["Open", "In Progress", "Resolved", "Cancelled"];
+const ACTIVITY_TYPES = ["Call", "Email", "Meeting", "Unit Viewing", "Food Tasting", "Follow-up", "Requirement Submitted", "Internal Note"];
 const MAINT_PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 const MAINT_STATUS_STYLE = {
   "Open": { bg: "bg-rose-100", text: "text-rose-800", dot: "bg-rose-600" },
@@ -175,6 +176,7 @@ function tenantRowToState(r) {
     concept: r.concept || "", contact: r.contact || "", mobile: r.mobile || "", email: r.email || "",
     sqm: r.sqm || "", property: r.property || "", unit: r.unit || "", remarks: r.remarks || "",
     unitViewing: r.unit_viewing || "", foodTasting: r.food_tasting || "", status: r.status || "Inquired",
+    nextFollowUp: r.next_follow_up || "", assignedTo: r.assigned_to || "",
   };
 }
 function tenantStateToRow(t) {
@@ -183,6 +185,7 @@ function tenantStateToRow(t) {
     concept: t.concept || "", contact: t.contact || "", mobile: t.mobile || "", email: t.email || "",
     sqm: t.sqm || "", property: t.property || "", unit: t.unit || "", remarks: t.remarks || "",
     unit_viewing: t.unitViewing || null, food_tasting: t.foodTasting || null, status: t.status || "Inquired",
+    next_follow_up: t.nextFollowUp || null, assigned_to: t.assignedTo || "",
   };
 }
 function listingRowToState(r) {
@@ -201,6 +204,10 @@ function listingStateToRow(l) {
     asking_rate: l.askingRate === "" || l.askingRate === undefined ? null : Number(l.askingRate),
     notes: l.notes || "",
   };
+}
+
+function activityRowToState(r) {
+  return { id: r.id, entityType: r.entity_type, entityId: r.entity_id, activityType: r.activity_type, note: r.note || "", createdBy: r.created_by || "", createdAt: r.created_at };
 }
 
 function maintRowToState(r) {
@@ -255,6 +262,12 @@ const fmtDate = (d) => {
   if (isNaN(dt)) return d;
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
+const fmtDateTime = (iso) => {
+  if (!iso) return "—";
+  const dt = new Date(iso);
+  if (isNaN(dt)) return iso;
+  return dt.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+};
 const fmtMoney = (n) => (n || n === 0 ? `₱${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : "—");
 
 async function hashPassword(password, salt) {
@@ -273,6 +286,133 @@ function computeListingStatus(listingKey, tenants) {
   const active = matches.filter((t) => ["Inquired", "Pending Requirements", "Under Evaluation"].includes(t.status)).length;
   if (active > 0) return { label: `${active} Active Inquir${active === 1 ? "y" : "ies"}`, kind: "active", count: matches.length, active };
   return { label: "Available", kind: "available", count: matches.length };
+}
+
+function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdit, onSaveFollowUp, onAddActivity }) {
+  const [activityType, setActivityType] = useState("Call");
+  const [activityNote, setActivityNote] = useState("");
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const handleAddActivity = () => {
+    onAddActivity(activityType, activityNote.trim());
+    setActivityNote("");
+  };
+
+  return (
+    <div className="space-y-6">
+      <button onClick={onBack} className="no-print flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700">
+        <X size={14} /> Back to Prospective tenants
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-2xl font-semibold text-stone-900">{tenant.brand || tenant.concept || "(no brand/concept yet)"}</h1>
+          <p className="mt-0.5 text-sm text-stone-500">{tenant.property}{tenant.unit ? ` · ${tenant.unit}` : ""}</p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Badge status={tenant.status} />
+          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+            <Pencil size={14} /> Edit
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Contact information</h2>
+          <dl className="space-y-2 text-sm">
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Contact person</dt><dd className="text-stone-800">{tenant.contact || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Mobile</dt><dd className="text-stone-800">{tenant.mobile || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Email</dt><dd className="text-stone-800">{tenant.email || "—"}</dd></div>
+          </dl>
+        </section>
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Leasing information</h2>
+          <dl className="space-y-2 text-sm">
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Category</dt><dd className="text-stone-800">{tenant.category || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Concept</dt><dd className="text-stone-800">{tenant.concept || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Space requirement</dt><dd className="text-stone-800">{tenant.sqm || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Date inquired</dt><dd className="text-stone-800">{fmtDate(tenant.dateInquired)}</dd></div>
+          </dl>
+        </section>
+      </div>
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Follow-up</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Next follow-up date">
+            <input
+              type="date"
+              className={inputCls}
+              value={tenant.nextFollowUp || ""}
+              onChange={(e) => onSaveFollowUp(e.target.value, tenant.assignedTo || "")}
+            />
+          </Field>
+          <Field label="Assigned to">
+            <input
+              className={inputCls}
+              placeholder="e.g. Maria"
+              defaultValue={tenant.assignedTo || ""}
+              onBlur={(e) => onSaveFollowUp(tenant.nextFollowUp || "", e.target.value)}
+            />
+          </Field>
+        </div>
+        {tenant.nextFollowUp && (
+          <span className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            tenant.nextFollowUp < todayStr ? "bg-rose-100 text-rose-800" :
+            tenant.nextFollowUp === todayStr ? "bg-amber-100 text-amber-800" :
+            "bg-blue-100 text-blue-800"
+          }`}>
+            {tenant.nextFollowUp < todayStr ? <AlertCircle size={13} /> : null}
+            {tenant.nextFollowUp < todayStr ? "Overdue" : tenant.nextFollowUp === todayStr ? "Due today" : "Upcoming"}
+          </span>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Activity timeline</h2>
+        <div className="no-print mb-4 flex flex-wrap gap-2">
+          <select className={`${inputCls} w-auto`} value={activityType} onChange={(e) => setActivityType(e.target.value)}>
+            {ACTIVITY_TYPES.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <input
+            className={`${inputCls} flex-1`}
+            placeholder="Add a note (optional)"
+            value={activityNote}
+            onChange={(e) => setActivityNote(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddActivity(); }}
+          />
+          <button onClick={handleAddActivity} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+            <Plus size={14} /> Add activity
+          </button>
+        </div>
+        {activitiesLoading ? (
+          <p className="py-6 text-center text-sm text-stone-500">Loading activity...</p>
+        ) : activities.length === 0 ? (
+          <p className="py-6 text-center text-sm text-stone-500">No activity logged yet.</p>
+        ) : (
+          <div className="flex flex-col">
+            {activities.map((a) => (
+              <div key={a.id} className="flex gap-3 border-t border-stone-100 py-2.5 first:border-t-0">
+                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-700" />
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">
+                    {a.activityType}{a.note ? <span className="font-normal text-stone-600"> — {a.note}</span> : null}
+                  </p>
+                  <p className="mt-0.5 text-xs text-stone-400">{fmtDateTime(a.createdAt)}{a.createdBy ? ` · by ${a.createdBy}` : ""}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Remarks</h2>
+        <p className="whitespace-pre-wrap text-sm text-stone-600">{tenant.remarks || "—"}</p>
+      </section>
+    </div>
+  );
 }
 
 function Badge({ status, styleMap }) {
@@ -934,6 +1074,9 @@ export default function PLUDLeasingTracker() {
   const [tenantPropertyFilter, setTenantPropertyFilter] = useState("All");
   const [tenantView, setTenantView] = useState("table");
   const [draggingTenantId, setDraggingTenantId] = useState(null);
+  const [detailTenantId, setDetailTenantId] = useState(null);
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
 
   const [showNewUser, setShowNewUser] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState(null);
@@ -1227,26 +1370,70 @@ export default function PLUDLeasingTracker() {
     [listings, tenants]
   );
 
+  const logActivity = useCallback(async (entityType, entityId, activityType, note) => {
+    const row = { id: uid("ACT"), entity_type: entityType, entity_id: entityId, activity_type: activityType, note: note || "", created_by: (user && user.name) || "" };
+    try {
+      await sbRequest("plud_activities", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
+      setActivities((prev) => (detailTenantId === entityId ? [activityRowToState(row), ...prev] : prev));
+    } catch (e) {
+      console.error("Log activity failed:", e);
+    }
+  }, [user, detailTenantId]);
+
   const saveTenant = useCallback((t) => {
+    let prevStatus = null;
     setTenants((prev) => {
-      const exists = prev.some((p) => p.id === t.id);
-      return exists ? prev.map((p) => (p.id === t.id ? t : p)) : [t, ...prev];
+      const existing = prev.find((p) => p.id === t.id);
+      prevStatus = existing ? existing.status : null;
+      return existing ? prev.map((p) => (p.id === t.id ? t : p)) : [t, ...prev];
     });
     setEditingTenant(null);
     setShowNewTenant(false);
+    if (prevStatus && prevStatus !== t.status) {
+      logActivity("tenant", t.id, "Status Change", `${prevStatus} → ${t.status}`);
+    }
     sbUpsert("plud_tenants", [tenantStateToRow(t)])
       .then(() => setSaveError(""))
       .catch((e) => { console.error("Supabase save (tenant) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
-  }, []);
+  }, [logActivity]);
 
   const updateTenantStatus = useCallback((id, newStatus) => {
     setTenants((prev) => {
       const t = prev.find((x) => x.id === id);
       if (!t || t.status === newStatus) return prev;
+      const prevStatus = t.status;
       const updated = { ...t, status: newStatus };
       sbUpsert("plud_tenants", [tenantStateToRow(updated)])
         .then(() => setSaveError(""))
         .catch((e) => { console.error("Supabase status update failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+      logActivity("tenant", id, "Status Change", `${prevStatus} → ${newStatus}`);
+      return prev.map((x) => (x.id === id ? updated : x));
+    });
+  }, [logActivity]);
+
+  const openTenantDetail = useCallback(async (id) => {
+    setDetailTenantId(id);
+    setActivities([]);
+    setActivitiesLoading(true);
+    try {
+      const rows = await sbRequest(`plud_activities?entity_id=eq.${encodeURIComponent(id)}&entity_type=eq.tenant&select=*&order=created_at.desc`);
+      setActivities(rows.map(activityRowToState));
+    } catch (e) {
+      console.error("Load activities failed:", e);
+    }
+    setActivitiesLoading(false);
+  }, []);
+  const closeTenantDetail = useCallback(() => {
+    setDetailTenantId(null);
+    setActivities([]);
+  }, []);
+
+  const saveFollowUpFields = useCallback((id, nextFollowUp, assignedTo) => {
+    setTenants((prev) => {
+      const t = prev.find((x) => x.id === id);
+      if (!t) return prev;
+      const updated = { ...t, nextFollowUp, assignedTo };
+      sbUpsert("plud_tenants", [tenantStateToRow(updated)]).catch((e) => console.error("Save follow-up fields failed:", e));
       return prev.map((x) => (x.id === id ? updated : x));
     });
   }, []);
@@ -1677,7 +1864,7 @@ export default function PLUDLeasingTracker() {
                     {stats.needsFollowUp.map((t) => (
                       <button
                         key={t.id}
-                        onClick={() => setEditingTenant(t)}
+                        onClick={() => openTenantDetail(t.id)}
                         className="flex w-full items-center justify-between gap-4 py-2.5 text-left hover:bg-stone-50"
                       >
                         <div className="min-w-0">
@@ -1766,7 +1953,7 @@ export default function PLUDLeasingTracker() {
                   {stats.pipeline.map((t) => (
                     <button
                       key={t.id}
-                      onClick={() => setEditingTenant(t)}
+                      onClick={() => openTenantDetail(t.id)}
                       className="flex w-full items-center justify-between gap-4 py-3 text-left hover:bg-stone-50"
                     >
                       <div className="min-w-0">
@@ -1784,7 +1971,19 @@ export default function PLUDLeasingTracker() {
           </div>
         )}
 
-        {tab === "tenants" && (
+        {tab === "tenants" && detailTenantId && tenants.find((t) => t.id === detailTenantId) && (
+          <TenantDetailView
+            tenant={tenants.find((t) => t.id === detailTenantId)}
+            activities={activities}
+            activitiesLoading={activitiesLoading}
+            onBack={closeTenantDetail}
+            onEdit={() => setEditingTenant(tenants.find((t) => t.id === detailTenantId))}
+            onSaveFollowUp={(nextFollowUp, assignedTo) => saveFollowUpFields(detailTenantId, nextFollowUp, assignedTo)}
+            onAddActivity={(type, note) => logActivity("tenant", detailTenantId, type, note)}
+          />
+        )}
+
+        {tab === "tenants" && !detailTenantId && (
           <div>
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[200px]">
@@ -1857,7 +2056,7 @@ export default function PLUDLeasingTracker() {
                             draggable
                             onDragStart={(e) => { setDraggingTenantId(t.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", t.id); }}
                             onDragEnd={() => setDraggingTenantId(null)}
-                            onClick={() => setEditingTenant(t)}
+                            onClick={() => openTenantDetail(t.id)}
                             className="cursor-grab rounded-lg border border-stone-200 bg-white p-2.5 shadow-sm hover:border-stone-300 hover:shadow"
                           >
                             <p className="text-sm font-semibold text-stone-900">{t.brand || t.concept || "(no brand/concept yet)"}</p>
@@ -1896,7 +2095,9 @@ export default function PLUDLeasingTracker() {
                         <tr key={t.id} className="hover:bg-stone-50">
                           <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(t.dateInquired)}</td>
                           <td className="px-4 py-3">
-                            <p className="font-medium text-stone-900">{t.brand || t.concept || "(no brand/concept yet)"}</p>
+                            <button onClick={() => openTenantDetail(t.id)} className="text-left font-medium text-stone-900 hover:text-violet-700 hover:underline">
+                              {t.brand || t.concept || "(no brand/concept yet)"}
+                            </button>
                             <p className="text-xs text-stone-500">{t.concept}</p>
                           </td>
                           <td className="px-4 py-3 text-stone-600">{t.category}</td>
