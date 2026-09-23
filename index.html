@@ -94,7 +94,8 @@
   .occupancy-donut-hole .total{font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--stone-900); line-height:1;}
   .occupancy-donut-hole .label{font-size:11px; color:var(--stone-500); margin-top:3px;}
   .occupancy-legend{display:flex; flex-direction:column; gap:10px; flex:1; min-width:180px;}
-  .occupancy-legend-row{display:flex; align-items:center; gap:9px; font-size:13px;}
+  .occupancy-legend-row{display:flex; align-items:center; gap:9px; font-size:13px; border:none; background:none; padding:6px 4px; width:100%; text-align:left; font-family:inherit; cursor:pointer; border-radius:6px;}
+  .occupancy-legend-row:hover{background:var(--stone-100);}
   .occupancy-legend-row .swatch{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
   .occupancy-legend-row .name{flex:1; color:var(--stone-700);}
   .occupancy-legend-row .count{font-weight:600; color:var(--stone-900);}
@@ -1286,31 +1287,31 @@ function dashboardHtml() {
         const availPct = Math.max(0, 100 - occPct - activePct);
         return `
         <div class="occupancy-donut-wrap">
-          <div class="occupancy-donut" style="background:conic-gradient(var(--emerald-700) 0% ${occPct}%, var(--blue-500) ${occPct}% ${occPct + activePct}%, var(--stone-300) ${occPct + activePct}% 100%);">
+          <div class="occupancy-donut" style="background:conic-gradient(var(--emerald-700) 0% ${occPct}%, var(--blue-500) ${occPct}% ${occPct + activePct}%, var(--stone-300) ${occPct + activePct}% 100%);" title="${s.occupied} occupied, ${s.activeInquiryUnits} active inquiry, ${s.available} available">
             <div class="occupancy-donut-hole">
               <span class="total">${s.totalUnits}</span>
               <span class="label">total units</span>
             </div>
           </div>
           <div class="occupancy-legend">
-            <div class="occupancy-legend-row">
+            <button class="occupancy-legend-row" onclick="goToListingsFiltered('occupied')" title="View occupied units">
               <span class="swatch" style="background:var(--emerald-700);"></span>
               <span class="name">Occupied</span>
               <span class="count">${s.occupied}</span>
               <span class="pct">${Math.round(occPct)}%</span>
-            </div>
-            <div class="occupancy-legend-row">
+            </button>
+            <button class="occupancy-legend-row" onclick="goToListingsFiltered('active inquir')" title="View units with active inquiries">
               <span class="swatch" style="background:var(--blue-500);"></span>
               <span class="name">Active inquiry</span>
               <span class="count">${s.activeInquiryUnits}</span>
               <span class="pct">${Math.round(activePct)}%</span>
-            </div>
-            <div class="occupancy-legend-row">
+            </button>
+            <button class="occupancy-legend-row" onclick="goToListingsFiltered('available')" title="View available units">
               <span class="swatch" style="background:var(--stone-300);"></span>
               <span class="name">Available</span>
               <span class="count">${s.available}</span>
               <span class="pct">${Math.round(availPct)}%</span>
-            </div>
+            </button>
           </div>
         </div>`;
       })()}
@@ -1420,6 +1421,11 @@ function goToMaintenanceFiltered(status) {
 }
 function goToListingsTab() {
   state.tab = "listings";
+  render();
+}
+function goToListingsFiltered(query) {
+  state.tab = "listings";
+  state.listingSearch = query;
   render();
 }
 function greetingWord() {

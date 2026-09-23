@@ -1466,6 +1466,10 @@ export default function PLUDLeasingTracker() {
     setMaintPropertyFilter("All");
   }, []);
   const goToListingsTab = useCallback(() => setTab("listings"), []);
+  const goToListingsFiltered = useCallback((query) => {
+    setTab("listings");
+    setListingSearch(query);
+  }, []);
 
   const unitsByProperty = useMemo(() => {
     const map = {};
@@ -2078,14 +2082,15 @@ export default function PLUDLeasingTracker() {
                 const activePct = Math.max(0, Math.min(100 - occPct, (stats.activeInquiryUnits / stats.totalUnits) * 100));
                 const availPct = Math.max(0, 100 - occPct - activePct);
                 const legend = [
-                  { name: "Occupied", count: stats.occupied, pct: occPct, color: "#123b31" },
-                  { name: "Active inquiry", count: stats.activeInquiryUnits, pct: activePct, color: "#4d6f93" },
-                  { name: "Available", count: stats.available, pct: availPct, color: "#d1d5db" },
+                  { name: "Occupied", count: stats.occupied, pct: occPct, color: "#123b31", query: "occupied" },
+                  { name: "Active inquiry", count: stats.activeInquiryUnits, pct: activePct, color: "#4d6f93", query: "active inquir" },
+                  { name: "Available", count: stats.available, pct: availPct, color: "#d1d5db", query: "available" },
                 ];
                 return (
                   <div className="flex flex-wrap items-center gap-7">
                     <div
                       className="flex shrink-0 items-center justify-center rounded-full"
+                      title={`${stats.occupied} occupied, ${stats.activeInquiryUnits} active inquiry, ${stats.available} available`}
                       style={{
                         width: 168, height: 168,
                         background: `conic-gradient(#123b31 0% ${occPct}%, #4d6f93 ${occPct}% ${occPct + activePct}%, #d1d5db ${occPct + activePct}% 100%)`,
@@ -2096,14 +2101,19 @@ export default function PLUDLeasingTracker() {
                         <span className="mt-0.5 text-xs text-stone-500">total units</span>
                       </div>
                     </div>
-                    <div className="flex min-w-44 flex-1 flex-col gap-2.5">
+                    <div className="flex min-w-44 flex-1 flex-col gap-1">
                       {legend.map((row) => (
-                        <div key={row.name} className="flex items-center gap-2.5 text-sm">
+                        <button
+                          key={row.name}
+                          onClick={() => goToListingsFiltered(row.query)}
+                          title={`View ${row.name.toLowerCase()} units`}
+                          className="flex items-center gap-2.5 rounded-md p-1.5 text-left text-sm hover:bg-stone-100"
+                        >
                           <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: row.color }} />
                           <span className="flex-1 text-stone-700">{row.name}</span>
                           <span className="font-semibold text-stone-900">{row.count}</span>
                           <span className="w-10 text-right text-xs text-stone-400">{Math.round(row.pct)}%</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
