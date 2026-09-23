@@ -1159,6 +1159,7 @@ export default function PLUDLeasingTracker() {
   const [customConcepts, setCustomConcepts] = useState([]);
   const [customStatuses, setCustomStatuses] = useState([]);
   const [settingsConceptCategory, setSettingsConceptCategory] = useState("");
+  const [listingSearch, setListingSearch] = useState("");
   const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -1476,6 +1477,12 @@ export default function PLUDLeasingTracker() {
     () => listings.map((l) => ({ ...l, ...computeListingStatus(keyOf(l.property, l.unit), tenants) })),
     [listings, tenants]
   );
+
+  const filteredListings = useMemo(() => {
+    const q = listingSearch.trim().toLowerCase();
+    if (!q) return listingsComputed;
+    return listingsComputed.filter((l) => [l.unit, l.property, l.label].some((v) => (v || "").toLowerCase().includes(q)));
+  }, [listingsComputed, listingSearch]);
 
   const logActivity = useCallback(async (entityType, entityId, activityType, note) => {
     const row = { id: uid("ACT"), entity_type: entityType, entity_id: entityId, activity_type: activityType, note: note || "", created_by: (user && user.name) || "" };
@@ -2285,15 +2292,29 @@ export default function PLUDLeasingTracker() {
 
         {tab === "listings" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-end">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={16} />
+                <input
+                  className={`${inputCls} pl-9`}
+                  placeholder="Search unit, property, or status..."
+                  value={listingSearch}
+                  onChange={(e) => setListingSearch(e.target.value)}
+                />
+              </div>
               <button
                 onClick={() => setShowNewListing(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
+                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
               >
                 <Plus size={16} /> Add listing
               </button>
             </div>
-            {PROPERTIES.filter((p) => listingsComputed.some((l) => l.property === p)).map((property) => (
+            {PROPERTIES.filter((p) => filteredListings.some((l) => l.property === p)).length === 0 ? (
+              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
+                <p className="text-sm font-medium text-stone-700">No units match "{listingSearch}".</p>
+                <p className="mt-1 text-xs text-stone-500">Try a different unit number, property name, or status.</p>
+              </div>
+            ) : PROPERTIES.filter((p) => filteredListings.some((l) => l.property === p)).map((property) => (
               <section key={property}>
                 <h2 className="mb-2 flex items-center gap-2 font-serif text-sm font-semibold text-stone-900">
                   <MapPin size={14} className="text-violet-700" /> {property}
@@ -2313,7 +2334,7 @@ export default function PLUDLeasingTracker() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                        {listingsComputed.filter((l) => l.property === property).map((l) => (
+                        {filteredListings.filter((l) => l.property === property).map((l) => (
                           <tr key={l.id} className="hover:bg-stone-50">
                             <td className="px-4 py-3 font-medium text-stone-900">{l.unit}</td>
                             <td className="px-4 py-3 text-stone-600">{l.floorArea ? `${l.floorArea} sqm` : "—"}</td>

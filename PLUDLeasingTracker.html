@@ -542,6 +542,7 @@ const state = {
   showAddOption: null,
   optionFormError: "",
   settingsConceptCategory: "",
+  listingSearch: "",
   lastSyncedAt: null,
   tenantView: "table",
   draggingTenantId: null,
@@ -549,6 +550,8 @@ const state = {
   detailMaintId: null,
   maintActivities: [],
   maintActivitiesLoading: false,
+  globalSearchQuery: "",
+  followUpFilter: "All",
   activities: [],
   activitiesLoading: false,
   newActivityType: "Call",
@@ -765,6 +768,7 @@ function computeStats() {
   const active = totalInquiries - awarded - lost;
   const conversionRate = totalInquiries ? awarded / totalInquiries : 0;
   const underEvaluation = tenants.filter((t) => t.status === "Under Evaluation").length;
+  const overdueFollowUps = allFollowUps().filter((t) => t.followUpStatus === "Overdue").length;
 
   const totalUnits = lc.length;
   const available = lc.filter((l) => l.kind === "available").length;
@@ -854,7 +858,7 @@ function computeStats() {
     .slice(0, 6);
 
   return {
-    totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties,
+    totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps,
     totalUnits, available, occupied, occupancyRate,
     byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
     maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
@@ -872,6 +876,175 @@ function filteredTenants() {
     })
     .slice()
     .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
+}
+
+function followUpStatusOf(dateStr) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (dateStr < today) return "Overdue";
+  if (dateStr === today) return "Due Today";
+  return "Upcoming";
+}
+function allFollowUps() {
+  return state.tenants
+    .filter((t) => t.nextFollowUp && t.status !== "Awarded/ Leased" && t.status !== "Lost/ Inactive")
+    .map((t) => ({ ...t, followUpStatus: followUpStatusOf(t.nextFollowUp) }))
+    .sort((a, b) => a.nextFollowUp.localeCompare(b.nextFollowUp));
+}
+function filteredFollowUps() {
+  const rows = allFollowUps();
+  if (state.followUpFilter === "All") return rows;
+  return rows.filter((r) => r.followUpStatus === state.followUpFilter);
+}
+
+function followUpsTabHtml() {
+  const rows = filteredFollowUps();
+  const all = allFollowUps();
+  const overdueCount = all.filter((r) => r.followUpStatus === "Overdue").length;
+  const dueTodayCount = all.filter((r) => r.followUpStatus === "Due Today").length;
+  const upcomingCount = all.filter((r) => r.followUpStatus === "Upcoming").length;
+  return `
+  <div class="stack">
+    <div>
+      <h1 class="page-title">Follow-ups</h1>
+      <p class="page-sub">Every active inquiry with a scheduled next follow-up date.</p>
+    </div>
+    <div class="stat-grid">
+      <button class="kpi-card" onclick="setFollowUpFilter('All')"><p class="stat-label">All</p><p class="stat-value">${all.length}</p></button>
+      <button class="kpi-card" onclick="setFollowUpFilter('Overdue')"><p class="stat-label">Overdue</p><p class="stat-value rose">${overdueCount}</p></button>
+      <button class="kpi-card" onclick="setFollowUpFilter('Due Today')"><p class="stat-label">Due today</p><p class="stat-value" style="color:var(--amber-700);">${dueTodayCount}</p></button>
+      <button class="kpi-card" onclick="setFollowUpFilter('Upcoming')"><p class="stat-label">Upcoming</p><p class="stat-value blue">${upcomingCount}</p></button>
+    </div>
+    <section class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h2 class="section-title" style="margin:0;">${state.followUpFilter === "All" ? "All follow-ups" : state.followUpFilter}</h2>
+        ${state.followUpFilter !== "All" ? `<button class="btn-link-back" onclick="setFollowUpFilter('All')">${icon("x", 13)} Clear filter</button>` : ""}
+      </div>
+      ${rows.length === 0 ? `<p class="empty-note">No follow-ups in this view.</p>` : `
+      <div class="table-wrap"><div class="table-scroll">
+        <table class="data narrow">
+          <thead><tr><th>Due date</th><th>Prospect</th><th>Property / unit</th><th>Assigned to</th><th>Follow-up</th><th>Leasing status</th></tr></thead>
+          <tbody>
+            ${rows.map((t) => `
+              <tr style="${t.followUpStatus === "Overdue" ? "background:var(--rose-50);" : ""}">
+                <td style="white-space:nowrap;font-weight:500;">${fmtDate(t.nextFollowUp)}</td>
+                <td><button class="cell-link" onclick="openTenantDetail('${t.id}')" style="color:var(--teal-700);font-weight:500;">${esc(t.brand || t.concept || "(no brand/concept yet)")}</button></td>
+                <td>${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</td>
+                <td>${esc(t.assignedTo) || "—"}</td>
+                <td>
+                  <span class="follow-up-status ${t.followUpStatus === "Overdue" ? "overdue" : t.followUpStatus === "Due Today" ? "due-today" : "upcoming"}">
+                    ${t.followUpStatus === "Overdue" ? icon("alert", 12) : ""}${esc(t.followUpStatus)}
+                  </span>
+                </td>
+                <td>${badgeHtml(t.status)}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div></div>`}
+    </section>
+  </div>`;
+}
+function setFollowUpFilter(f) {
+  state.followUpFilter = f;
+  render();
+}
+function goToFollowUps(filter) {
+  state.tab = "followups";
+  state.followUpFilter = filter || "All";
+  render();
+}
+
+function globalSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return { units: [], prospects: [], maintenance: [] };
+  const units = listingsComputed().filter((l) =>
+    [l.property, l.unit].some((v) => (v || "").toLowerCase().includes(q))
+  ).slice(0, 8);
+  const prospects = state.tenants.filter((t) =>
+    [t.brand, t.contact, t.concept, t.property, t.unit, t.email].some((v) => (v || "").toLowerCase().includes(q))
+  ).slice(0, 8);
+  const maintenance = state.maintenance.filter((m) =>
+    [m.issue, m.property, m.unit, m.assignedTo].some((v) => (v || "").toLowerCase().includes(q))
+  ).slice(0, 8);
+  return { units, prospects, maintenance };
+}
+
+function searchTabHtml() {
+  const q = state.globalSearchQuery;
+  const results = globalSearchResults(q);
+  const hasQuery = q.trim().length > 0;
+  const totalResults = results.units.length + results.prospects.length + results.maintenance.length;
+  return `
+  <div class="stack">
+    <div>
+      <h1 class="page-title">Search</h1>
+      <p class="page-sub">Search across units, prospects, and maintenance tickets.</p>
+    </div>
+    <div class="search-wrap" style="max-width:480px;">
+      ${icon("search", 16)}
+      <input id="global-search-input" class="input" placeholder="Search brand, contact, unit, issue..." value="${esc(q)}" oninput="onGlobalSearch(this.value)" autofocus />
+    </div>
+    <div id="global-search-results">${hasQuery ? globalSearchResultsHtml(results) : `<p class="empty-note">Start typing to search across the whole system.</p>`}</div>
+  </div>`;
+}
+
+function globalSearchResultsHtml(results) {
+  const { units, prospects, maintenance } = results;
+  if (units.length + prospects.length + maintenance.length === 0) {
+    return `<div class="empty-state"><p class="title">No matches found.</p><p class="sub">Try a different unit, name, or keyword.</p></div>`;
+  }
+  return `
+    ${prospects.length > 0 ? `
+    <section class="panel" style="margin-bottom:16px;">
+      <h2 class="section-title">Prospects (${prospects.length})</h2>
+      <div>
+        ${prospects.map((t) => `
+          <button class="pipeline-item" onclick="openTenantDetail('${t.id}')">
+            <div class="pipeline-main" style="min-width:0;">
+              <p>${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
+              <p class="pipeline-sub">${esc(t.contact)} · ${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</p>
+            </div>
+            ${badgeHtml(t.status)}
+          </button>`).join("")}
+      </div>
+    </section>` : ""}
+    ${units.length > 0 ? `
+    <section class="panel" style="margin-bottom:16px;">
+      <h2 class="section-title">Units (${units.length})</h2>
+      <div>
+        ${units.map((l) => `
+          <button class="pipeline-item" onclick="goToTenantsForListing('${l.id}')">
+            <div class="pipeline-main" style="min-width:0;">
+              <p>${esc(l.property)} — ${esc(l.unit)}</p>
+              <p class="pipeline-sub">${l.floorArea ? esc(l.floorArea) + " sqm" : "No floor area set"}</p>
+            </div>
+            <span class="status-pill ${l.kind}">${esc(l.label)}</span>
+          </button>`).join("")}
+      </div>
+    </section>` : ""}
+    ${maintenance.length > 0 ? `
+    <section class="panel">
+      <h2 class="section-title">Maintenance (${maintenance.length})</h2>
+      <div>
+        ${maintenance.map((m) => `
+          <button class="pipeline-item" onclick="goToMaintenance('${m.id}')">
+            <div class="pipeline-main" style="min-width:0;">
+              <p>${esc(m.issue || "(no description)")}</p>
+              <p class="pipeline-sub">${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</p>
+            </div>
+            ${badgeHtml(m.status, MAINT_STATUS_STYLE)}
+          </button>`).join("")}
+      </div>
+    </section>` : ""}
+  `;
+}
+
+function onGlobalSearch(value) {
+  state.globalSearchQuery = value;
+  const el = document.getElementById("global-search-results");
+  if (el) {
+    const hasQuery = value.trim().length > 0;
+    el.innerHTML = hasQuery ? globalSearchResultsHtml(globalSearchResults(value)) : `<p class="empty-note">Start typing to search across the whole system.</p>`;
+  }
 }
 
 function filteredMaintenance() {
@@ -970,10 +1143,14 @@ async function onAuthSubmit(e) {
 /* App shell                                                               */
 /* ---------------------------------------------------------------------- */
 const NAV_GROUPS = [
-  { label: null, items: [{ id: "dashboard", label: "Dashboard", icon: "dashboard" }] },
+  { label: null, items: [
+    { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+    { id: "search", label: "Search", icon: "search" },
+  ] },
   { label: "Leasing", items: [
     { id: "tenants", label: "Prospective tenants", icon: "users" },
     { id: "listings", label: "PLUD listings", icon: "building" },
+    { id: "followups", label: "Follow-ups", icon: "alert" },
   ] },
   { label: "Operations", items: [
     { id: "maintenance", label: "Maintenance", icon: "wrench" },
@@ -1030,8 +1207,10 @@ function appShellHtml() {
 
 function tabContentHtml() {
   if (state.tab === "dashboard") return dashboardHtml();
+  if (state.tab === "search") return searchTabHtml();
   if (state.tab === "tenants") return state.detailTenantId ? tenantDetailHtml() : tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
+  if (state.tab === "followups") return followUpsTabHtml();
   if (state.tab === "maintenance") return state.detailMaintId ? maintDetailHtml() : maintenanceTabHtml();
   if (state.tab === "reports") return reportsTabHtml();
   if (state.tab === "settings") return settingsHtml();
@@ -1061,6 +1240,7 @@ function dashboardHtml() {
     { label: "Under evaluation", value: s.underEvaluation, onClick: "goToTenantsFiltered('Under Evaluation')" },
     { label: "Leased", value: s.awarded, onClick: "goToTenantsFiltered('Awarded/ Leased')", accent: "emerald" },
     { label: "Open maintenance", value: s.maintOpen, onClick: "goToMaintenanceFiltered('Open')", accent: "rose" },
+    { label: "Overdue follow-ups", value: s.overdueFollowUps, onClick: "goToFollowUps('Overdue')", accent: "rose" },
   ];
 
   return `
@@ -1400,14 +1580,39 @@ function onTenantPropertyFilter(v) {
 /* Listings tab                                                            */
 /* ---------------------------------------------------------------------- */
 function listingsTabHtml() {
-  const lc = listingsComputed();
-  const properties = PROPERTIES.filter((p) => lc.some((l) => l.property === p));
   return `
   <div class="stack">
-    <div style="display:flex;justify-content:flex-end;">
+    <div class="toolbar" style="margin-bottom:0;">
+      <div class="search-wrap" style="flex:1;">
+        ${icon("search", 16)}
+        <input id="listing-search" class="input" placeholder="Search unit, property, or status..." value="${esc(state.listingSearch)}" oninput="onListingSearch(this.value)" />
+      </div>
       <button class="btn btn-primary" onclick="openNewListing()">${icon("plus", 16)} Add listing</button>
     </div>
-    ${properties.map((property) => `
+    <div id="listing-results">${listingResultsHtml()}</div>
+  </div>`;
+}
+
+function onListingSearch(v) {
+  state.listingSearch = v;
+  document.getElementById("listing-results").innerHTML = listingResultsHtml();
+}
+
+function listingResultsHtml() {
+  const lc = listingsComputed();
+  const q = state.listingSearch.trim().toLowerCase();
+  const matches = (l) => !q || [l.unit, l.property, l.label].some((v) => (v || "").toLowerCase().includes(q));
+  const properties = PROPERTIES.filter((p) => lc.some((l) => l.property === p && matches(l)));
+
+  if (q && properties.length === 0) {
+    return `
+    <div class="empty-state">
+      <p class="title">No units match "${esc(state.listingSearch)}".</p>
+      <p class="sub">Try a different unit number, property name, or status.</p>
+    </div>`;
+  }
+
+  return properties.map((property) => `
       <section class="property-block">
         <h2 class="property-heading">${icon("mappin", 14)} ${esc(property)}</h2>
         <div class="table-wrap"><div class="table-scroll">
@@ -1416,7 +1621,7 @@ function listingsTabHtml() {
               <th>Unit</th><th>Floor area</th><th>Asking rate</th><th>Est. monthly rent</th><th>Status</th><th class="right">Inquiries</th><th class="right">Actions</th>
             </tr></thead>
             <tbody>
-              ${lc.filter((l) => l.property === property).map((l) => `
+              ${lc.filter((l) => l.property === property && matches(l)).map((l) => `
                 <tr>
                   <td style="font-weight:500;color:var(--stone-900);">${esc(l.unit)}</td>
                   <td>${l.floorArea ? esc(l.floorArea) + " sqm" : "—"}</td>
@@ -1435,8 +1640,7 @@ function listingsTabHtml() {
             </tbody>
           </table>
         </div></div>
-      </section>`).join("")}
-  </div>`;
+      </section>`).join("");
 }
 
 /* ---------------------------------------------------------------------- */
