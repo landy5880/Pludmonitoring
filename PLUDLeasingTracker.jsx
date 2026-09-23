@@ -1160,6 +1160,7 @@ export default function PLUDLeasingTracker() {
   const [customStatuses, setCustomStatuses] = useState([]);
   const [settingsConceptCategory, setSettingsConceptCategory] = useState("");
   const [listingSearch, setListingSearch] = useState("");
+  const [followUpFilter, setFollowUpFilter] = useState("All");
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
@@ -1485,6 +1486,30 @@ export default function PLUDLeasingTracker() {
     return listingsComputed.filter((l) => [l.unit, l.property, l.label].some((v) => (v || "").toLowerCase().includes(q)));
   }, [listingsComputed, listingSearch]);
 
+  const followUpStatusOf = useCallback((dateStr) => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (dateStr < today) return "Overdue";
+    if (dateStr === today) return "Due Today";
+    return "Upcoming";
+  }, []);
+
+  const allFollowUps = useMemo(() => {
+    return tenants
+      .filter((t) => t.nextFollowUp && t.status !== "Awarded/ Leased" && t.status !== "Lost/ Inactive")
+      .map((t) => ({ ...t, followUpStatus: followUpStatusOf(t.nextFollowUp) }))
+      .sort((a, b) => a.nextFollowUp.localeCompare(b.nextFollowUp));
+  }, [tenants, followUpStatusOf]);
+
+  const filteredFollowUps = useMemo(() => {
+    if (followUpFilter === "All") return allFollowUps;
+    return allFollowUps.filter((r) => r.followUpStatus === followUpFilter);
+  }, [allFollowUps, followUpFilter]);
+
+  const goToFollowUps = useCallback((filter) => {
+    setTab("followups");
+    setFollowUpFilter(filter || "All");
+  }, []);
+
   const logActivity = useCallback(async (entityType, entityId, activityType, note) => {
     const row = { id: uid("ACT"), entity_type: entityType, entity_id: entityId, activity_type: activityType, note: note || "", created_by: (user && user.name) || "" };
     try {
@@ -1705,7 +1730,16 @@ export default function PLUDLeasingTracker() {
         if (daysOut >= 0 && daysOut <= 7) upcoming.push({ tenant: t, label, dateStr, daysOut });
       });
     });
+    const followUpsForUpcoming = allFollowUps.filter((t) => t.followUpStatus === "Due Today" || t.followUpStatus === "Upcoming");
+    followUpsForUpcoming.forEach((t) => {
+      const eventMs = new Date(t.nextFollowUp + "T00:00:00").getTime();
+      const daysOut = Math.round((eventMs - todayMs) / 86400000);
+      if (daysOut <= 7) upcoming.push({ tenant: t, label: "Follow-up", dateStr: t.nextFollowUp, daysOut });
+    });
     upcoming.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+    const overdueFollowUps = allFollowUps.filter((t) => t.followUpStatus === "Overdue").length;
+    const dueTodayFollowUps = allFollowUps.filter((t) => t.followUpStatus === "Due Today").length;
+    const upcomingFollowUpsCount = allFollowUps.filter((t) => t.followUpStatus === "Upcoming").length;
 
     const maintOpen = maintenance.filter((m) => m.status === "Open").length;
     const maintInProgress = maintenance.filter((m) => m.status === "In Progress").length;
@@ -1737,12 +1771,12 @@ export default function PLUDLeasingTracker() {
       .slice(0, 6);
 
     return {
-      totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties,
+      totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps, dueTodayFollowUps, upcomingFollowUpsCount,
       totalUnits, available, occupied, occupancyRate,
       byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
       maintTotal: maintenance.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
     };
-  }, [tenants, listingsComputed, maintenance, allStatusOptions]);
+  }, [tenants, listingsComputed, maintenance, allStatusOptions, allFollowUps]);
 
   const filteredTenants = useMemo(() => {
     return tenants
@@ -1863,6 +1897,7 @@ export default function PLUDLeasingTracker() {
     { label: "Leasing", items: [
       { id: "tenants", label: "Prospective tenants", icon: Users },
       { id: "listings", label: "PLUD listings", icon: Building2 },
+      { id: "followups", label: "Follow-ups", icon: AlertCircle },
     ] },
     { label: "Operations", items: [
       { id: "maintenance", label: "Maintenance", icon: Wrench },
@@ -1965,6 +2000,7 @@ export default function PLUDLeasingTracker() {
                 { label: "Under evaluation", value: stats.underEvaluation, onClick: () => goToTenantsFiltered("Under Evaluation") },
                 { label: "Leased", value: stats.awarded, onClick: () => goToTenantsFiltered("Awarded/ Leased"), accent: "text-emerald-700" },
                 { label: "Open maintenance", value: stats.maintOpen, onClick: () => goToMaintenanceFiltered("Open"), accent: "text-rose-700" },
+                { label: "Overdue follow-ups", value: stats.overdueFollowUps, onClick: () => goToFollowUps("Overdue"), accent: "text-rose-700" },
               ].map((k) => (
                 <button key={k.label} onClick={k.onClick} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left transition hover:border-stone-300 hover:shadow-sm">
                   <p className="text-xs font-medium text-stone-500">{k.label}</p>
@@ -2033,7 +2069,20 @@ export default function PLUDLeasingTracker() {
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <section className="rounded-lg border border-stone-200 bg-white p-4">
-                <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Needs follow-up</h2>
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="font-serif text-sm font-semibold text-stone-900">Needs follow-up</h2>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => goToFollowUps("Overdue")} className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-200">
+                      {stats.overdueFollowUps} overdue
+                    </button>
+                    <button onClick={() => goToFollowUps("Due Today")} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-200">
+                      {stats.dueTodayFollowUps} today
+                    </button>
+                    <button onClick={() => goToFollowUps("Upcoming")} className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-200">
+                      {stats.upcomingFollowUpsCount} upcoming
+                    </button>
+                  </div>
+                </div>
                 {stats.needsFollowUp.length === 0 ? (
                   <p className="py-6 text-center text-sm text-stone-500">Nothing stale — every active inquiry has moved in the last two weeks.</p>
                 ) : (
@@ -2055,18 +2104,19 @@ export default function PLUDLeasingTracker() {
                     ))}
                   </div>
                 )}
+                <p className="mt-2.5 text-xs text-stone-400">Based on time since last status change. The chips above use each inquiry's scheduled next follow-up date instead.</p>
               </section>
 
               <section className="rounded-lg border border-stone-200 bg-white p-4">
                 <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Upcoming activities</h2>
                 {stats.upcoming.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-stone-500">No viewings or tastings scheduled in the next 7 days.</p>
+                  <p className="py-6 text-center text-sm text-stone-500">Nothing scheduled in the next 7 days.</p>
                 ) : (
                   <div className="divide-y divide-stone-100">
                     {stats.upcoming.map((u, i) => (
                       <button
                         key={i}
-                        onClick={() => setEditingTenant(u.tenant)}
+                        onClick={() => openTenantDetail(u.tenant.id)}
                         className="flex w-full items-center justify-between gap-4 py-2.5 text-left hover:bg-stone-50"
                       >
                         <div className="min-w-0">
@@ -2080,7 +2130,7 @@ export default function PLUDLeasingTracker() {
                     ))}
                   </div>
                 )}
-                <p className="mt-2.5 text-xs text-stone-400">Unit viewings and food tastings shown here. Follow-up dates and maintenance appointments aren't tracked as scheduled events yet.</p>
+                <p className="mt-2.5 text-xs text-stone-400">Unit viewings, food tastings, and scheduled follow-ups due in the next 7 days. Maintenance appointments aren't tracked as scheduled events yet.</p>
               </section>
             </div>
 
@@ -2492,6 +2542,87 @@ export default function PLUDLeasingTracker() {
             )}
           </div>
         )}
+
+        {tab === "followups" && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="font-serif text-lg font-semibold text-stone-900">Follow-ups</h1>
+              <p className="text-sm text-stone-500">Every active inquiry with a scheduled next follow-up date.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <button onClick={() => setFollowUpFilter("All")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+                <p className="text-xs font-medium text-stone-500">All</p>
+                <p className="mt-1.5 font-serif text-2xl font-semibold text-stone-900">{allFollowUps.length}</p>
+              </button>
+              <button onClick={() => setFollowUpFilter("Overdue")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+                <p className="text-xs font-medium text-stone-500">Overdue</p>
+                <p className="mt-1.5 font-serif text-2xl font-semibold text-rose-700">{stats.overdueFollowUps}</p>
+              </button>
+              <button onClick={() => setFollowUpFilter("Due Today")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+                <p className="text-xs font-medium text-stone-500">Due today</p>
+                <p className="mt-1.5 font-serif text-2xl font-semibold text-amber-700">{stats.dueTodayFollowUps}</p>
+              </button>
+              <button onClick={() => setFollowUpFilter("Upcoming")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+                <p className="text-xs font-medium text-stone-500">Upcoming</p>
+                <p className="mt-1.5 font-serif text-2xl font-semibold text-blue-700">{stats.upcomingFollowUpsCount}</p>
+              </button>
+            </div>
+            <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-serif text-sm font-semibold text-stone-900">{followUpFilter === "All" ? "All follow-ups" : followUpFilter}</h2>
+                {followUpFilter !== "All" && (
+                  <button onClick={() => setFollowUpFilter("All")} className="flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-700">
+                    <X size={13} /> Clear filter
+                  </button>
+                )}
+              </div>
+              {filteredFollowUps.length === 0 ? (
+                <p className="py-6 text-center text-sm text-stone-500">No follow-ups in this view.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Due date</th>
+                        <th className="px-4 py-3 font-medium">Prospect</th>
+                        <th className="px-4 py-3 font-medium">Property / unit</th>
+                        <th className="px-4 py-3 font-medium">Assigned to</th>
+                        <th className="px-4 py-3 font-medium">Follow-up</th>
+                        <th className="px-4 py-3 font-medium">Leasing status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {filteredFollowUps.map((t) => (
+                        <tr key={t.id} className={t.followUpStatus === "Overdue" ? "bg-rose-50" : "hover:bg-stone-50"}>
+                          <td className="whitespace-nowrap px-4 py-3 font-medium text-stone-900">{fmtDate(t.nextFollowUp)}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => openTenantDetail(t.id)} className="font-medium text-violet-700 hover:underline">
+                              {t.brand || t.concept || "(no brand/concept yet)"}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 text-stone-600">{t.property}{t.unit ? ` · ${t.unit}` : ""}</td>
+                          <td className="px-4 py-3 text-stone-600">{t.assignedTo || "—"}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              t.followUpStatus === "Overdue" ? "bg-rose-100 text-rose-800" :
+                              t.followUpStatus === "Due Today" ? "bg-amber-100 text-amber-800" :
+                              "bg-blue-100 text-blue-800"
+                            }`}>
+                              {t.followUpStatus === "Overdue" && <AlertCircle size={12} />}
+                              {t.followUpStatus}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3"><Badge status={t.status} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
         {tab === "reports" && (
           <div>
             <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">

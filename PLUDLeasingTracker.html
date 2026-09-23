@@ -66,6 +66,10 @@
   .kpi-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
   @media(min-width:768px){.kpi-grid{grid-template-columns:repeat(4,1fr);}}
   .kpi-card{text-align:left; border:1px solid var(--stone-200); background:#fff; border-radius:8px; padding:16px; border-top:2px solid var(--teal-700); cursor:pointer; transition:box-shadow .12s, border-color .12s;}
+  .followup-chip{border:none; border-radius:999px; padding:4px 10px; font-size:11.5px; font-weight:600; cursor:pointer; white-space:nowrap;}
+  .followup-chip.overdue{background:var(--rose-100); color:var(--rose-800);}
+  .followup-chip.due-today{background:var(--amber-100); color:var(--amber-800);}
+  .followup-chip.upcoming{background:var(--blue-100); color:var(--blue-800);}
   .kpi-card:hover{border-color:var(--stone-300); box-shadow:0 2px 8px rgba(0,0,0,.06);}
   .funnel{display:flex; flex-direction:column; gap:12px;}
   .funnel-row{display:grid; grid-template-columns:150px 1fr 32px; align-items:center; gap:10px; row-gap:2px;}
@@ -849,7 +853,15 @@ function computeStats() {
       if (daysOut >= 0 && daysOut <= 7) upcoming.push({ tenant: t, label, dateStr, daysOut });
     });
   });
+  const followUpsForUpcoming = allFollowUps().filter((t) => t.followUpStatus === "Due Today" || t.followUpStatus === "Upcoming");
+  followUpsForUpcoming.forEach((t) => {
+    const eventMs = new Date(t.nextFollowUp + "T00:00:00").getTime();
+    const daysOut = Math.round((eventMs - todayMs) / 86400000);
+    if (daysOut <= 7) upcoming.push({ tenant: t, label: "Follow-up", dateStr: t.nextFollowUp, daysOut });
+  });
   upcoming.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+  const dueTodayFollowUps = allFollowUps().filter((t) => t.followUpStatus === "Due Today").length;
+  const upcomingFollowUpsCount = allFollowUps().filter((t) => t.followUpStatus === "Upcoming").length;
 
   const maint = state.maintenance;
   const maintOpen = maint.filter((m) => m.status === "Open").length;
@@ -882,7 +894,7 @@ function computeStats() {
     .slice(0, 6);
 
   return {
-    totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps,
+    totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps, dueTodayFollowUps, upcomingFollowUpsCount,
     totalUnits, available, occupied, occupancyRate,
     byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
     maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
@@ -1250,7 +1262,14 @@ function dashboardHtml() {
 
     <div class="two-col">
       <section class="panel">
-        <h2 class="section-title">Needs follow-up</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+          <h2 class="section-title" style="margin:0;">Needs follow-up</h2>
+          <div style="display:flex;gap:6px;">
+            <button class="followup-chip overdue" onclick="goToFollowUps('Overdue')" title="Overdue follow-ups">${s.overdueFollowUps} overdue</button>
+            <button class="followup-chip due-today" onclick="goToFollowUps('Due Today')" title="Due today">${s.dueTodayFollowUps} today</button>
+            <button class="followup-chip upcoming" onclick="goToFollowUps('Upcoming')" title="Upcoming follow-ups">${s.upcomingFollowUpsCount} upcoming</button>
+          </div>
+        </div>
         ${s.needsFollowUp.length === 0 ? `<p class="empty-note">Nothing stale — every active inquiry has moved in the last two weeks.</p>` : `
           <div>
             ${s.needsFollowUp.map((t) => `
@@ -1262,11 +1281,12 @@ function dashboardHtml() {
                 <span style="flex-shrink:0;border-radius:999px;background:var(--amber-100);color:var(--amber-800);padding:4px 10px;font-size:12px;font-weight:500;">${t.daysWaiting}d waiting</span>
               </button>`).join("")}
           </div>`}
+        <p style="margin:10px 0 0;font-size:11px;color:var(--stone-400);">Based on time since last status change. The chips above use each inquiry's scheduled next follow-up date instead.</p>
       </section>
 
       <section class="panel">
         <h2 class="section-title">Upcoming activities</h2>
-        ${s.upcoming.length === 0 ? `<p class="empty-note">No viewings or tastings scheduled in the next 7 days.</p>` : `
+        ${s.upcoming.length === 0 ? `<p class="empty-note">Nothing scheduled in the next 7 days.</p>` : `
           <div>
             ${s.upcoming.map((u) => `
               <button class="pipeline-item" onclick="openTenantDetail('${u.tenant.id}')">
@@ -1277,7 +1297,7 @@ function dashboardHtml() {
                 <span style="flex-shrink:0;font-size:12px;font-weight:500;color:var(--stone-700);">${u.daysOut === 0 ? "Today" : u.daysOut === 1 ? "Tomorrow" : fmtDate(u.dateStr)}</span>
               </button>`).join("")}
           </div>`}
-        <p style="margin:10px 0 0;font-size:11px;color:var(--stone-400);">Unit viewings and food tastings shown here. Follow-up dates and maintenance appointments aren't tracked as scheduled events yet.</p>
+        <p style="margin:10px 0 0;font-size:11px;color:var(--stone-400);">Unit viewings, food tastings, and scheduled follow-ups due in the next 7 days. Maintenance appointments aren't tracked as scheduled events yet.</p>
       </section>
     </div>
 
