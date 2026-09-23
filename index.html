@@ -88,6 +88,17 @@
     .funnel-pct{grid-column:auto;}
     .funnel-conv{grid-column:auto;}
   }
+  .occupancy-donut-wrap{display:flex; flex-wrap:wrap; align-items:center; gap:28px;}
+  .occupancy-donut{width:168px; height:168px; border-radius:999px; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative;}
+  .occupancy-donut-hole{width:112px; height:112px; border-radius:999px; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .occupancy-donut-hole .total{font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--stone-900); line-height:1;}
+  .occupancy-donut-hole .label{font-size:11px; color:var(--stone-500); margin-top:3px;}
+  .occupancy-legend{display:flex; flex-direction:column; gap:10px; flex:1; min-width:180px;}
+  .occupancy-legend-row{display:flex; align-items:center; gap:9px; font-size:13px;}
+  .occupancy-legend-row .swatch{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+  .occupancy-legend-row .name{flex:1; color:var(--stone-700);}
+  .occupancy-legend-row .count{font-weight:600; color:var(--stone-900);}
+  .occupancy-legend-row .pct{color:var(--stone-400); font-size:12px; width:38px; text-align:right;}
 
   /* buttons */
   .btn{display:inline-flex; align-items:center; gap:6px; border-radius:10px; padding:8px 14px; font-size:14px; font-weight:500; border:1px solid transparent; cursor:pointer; position:relative; overflow:hidden;}
@@ -807,6 +818,7 @@ function computeStats() {
   const totalUnits = lc.length;
   const available = lc.filter((l) => l.kind === "available").length;
   const occupied = lc.filter((l) => l.kind === "occupied").length;
+  const activeInquiryUnits = lc.filter((l) => l.kind === "active").length;
   const occupancyRate = totalUnits ? occupied / totalUnits : 0;
   const totalProperties = new Set(lc.map((l) => l.property)).size;
 
@@ -901,7 +913,7 @@ function computeStats() {
 
   return {
     totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps, dueTodayFollowUps, upcomingFollowUpsCount,
-    totalUnits, available, occupied, occupancyRate,
+    totalUnits, available, occupied, activeInquiryUnits, occupancyRate,
     byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
     maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
   };
@@ -1264,6 +1276,44 @@ function dashboardHtml() {
           </tbody>
         </table>
       </div></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Unit occupancy breakdown</h2>
+      ${s.totalUnits === 0 ? `<p class="empty-note">No units in the listings inventory yet.</p>` : (() => {
+        const occPct = (s.occupied / s.totalUnits) * 100;
+        const activePct = (s.activeInquiryUnits / s.totalUnits) * 100;
+        const availPct = 100 - occPct - activePct;
+        return `
+        <div class="occupancy-donut-wrap">
+          <div class="occupancy-donut" style="background:conic-gradient(var(--emerald-700) 0% ${occPct}%, var(--blue-500) ${occPct}% ${occPct + activePct}%, var(--stone-300) ${occPct + activePct}% 100%);">
+            <div class="occupancy-donut-hole">
+              <span class="total">${s.totalUnits}</span>
+              <span class="label">total units</span>
+            </div>
+          </div>
+          <div class="occupancy-legend">
+            <div class="occupancy-legend-row">
+              <span class="swatch" style="background:var(--emerald-700);"></span>
+              <span class="name">Occupied</span>
+              <span class="count">${s.occupied}</span>
+              <span class="pct">${Math.round(occPct)}%</span>
+            </div>
+            <div class="occupancy-legend-row">
+              <span class="swatch" style="background:var(--blue-500);"></span>
+              <span class="name">Active inquiry</span>
+              <span class="count">${s.activeInquiryUnits}</span>
+              <span class="pct">${Math.round(activePct)}%</span>
+            </div>
+            <div class="occupancy-legend-row">
+              <span class="swatch" style="background:var(--stone-300);"></span>
+              <span class="name">Available</span>
+              <span class="count">${s.available}</span>
+              <span class="pct">${Math.round(availPct)}%</span>
+            </div>
+          </div>
+        </div>`;
+      })()}
     </section>
 
     <div class="two-col">

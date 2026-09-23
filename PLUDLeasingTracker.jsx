@@ -1679,6 +1679,7 @@ export default function PLUDLeasingTracker() {
     const totalUnits = listingsComputed.length;
     const available = listingsComputed.filter((l) => l.kind === "available").length;
     const occupied = listingsComputed.filter((l) => l.kind === "occupied").length;
+    const activeInquiryUnits = listingsComputed.filter((l) => l.kind === "active").length;
     const occupancyRate = totalUnits ? occupied / totalUnits : 0;
     const totalProperties = new Set(listingsComputed.map((l) => l.property)).size;
 
@@ -1773,7 +1774,7 @@ export default function PLUDLeasingTracker() {
 
     return {
       totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps, dueTodayFollowUps, upcomingFollowUpsCount,
-      totalUnits, available, occupied, occupancyRate,
+      totalUnits, available, occupied, activeInquiryUnits, occupancyRate,
       byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
       maintTotal: maintenance.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
     };
@@ -2066,6 +2067,48 @@ export default function PLUDLeasingTracker() {
                   </tbody>
                 </table>
               </div>
+            </section>
+
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Unit occupancy breakdown</h2>
+              {stats.totalUnits === 0 ? (
+                <p className="py-6 text-center text-sm text-stone-500">No units in the listings inventory yet.</p>
+              ) : (() => {
+                const occPct = (stats.occupied / stats.totalUnits) * 100;
+                const activePct = (stats.activeInquiryUnits / stats.totalUnits) * 100;
+                const availPct = 100 - occPct - activePct;
+                const legend = [
+                  { name: "Occupied", count: stats.occupied, pct: occPct, color: "#123b31" },
+                  { name: "Active inquiry", count: stats.activeInquiryUnits, pct: activePct, color: "#4d6f93" },
+                  { name: "Available", count: stats.available, pct: availPct, color: "#d1d5db" },
+                ];
+                return (
+                  <div className="flex flex-wrap items-center gap-7">
+                    <div
+                      className="flex shrink-0 items-center justify-center rounded-full"
+                      style={{
+                        width: 168, height: 168,
+                        background: `conic-gradient(#123b31 0% ${occPct}%, #4d6f93 ${occPct}% ${occPct + activePct}%, #d1d5db ${occPct + activePct}% 100%)`,
+                      }}
+                    >
+                      <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white">
+                        <span className="font-serif text-2xl font-bold text-stone-900">{stats.totalUnits}</span>
+                        <span className="mt-0.5 text-xs text-stone-500">total units</span>
+                      </div>
+                    </div>
+                    <div className="flex min-w-44 flex-1 flex-col gap-2.5">
+                      {legend.map((row) => (
+                        <div key={row.name} className="flex items-center gap-2.5 text-sm">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: row.color }} />
+                          <span className="flex-1 text-stone-700">{row.name}</span>
+                          <span className="font-semibold text-stone-900">{row.count}</span>
+                          <span className="w-10 text-right text-xs text-stone-400">{Math.round(row.pct)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </section>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
