@@ -1281,9 +1281,9 @@ function dashboardHtml() {
     <section class="panel">
       <h2 class="section-title">Unit occupancy breakdown</h2>
       ${s.totalUnits === 0 ? `<p class="empty-note">No units in the listings inventory yet.</p>` : (() => {
-        const occPct = (s.occupied / s.totalUnits) * 100;
-        const activePct = (s.activeInquiryUnits / s.totalUnits) * 100;
-        const availPct = 100 - occPct - activePct;
+        const occPct = Math.max(0, Math.min(100, (s.occupied / s.totalUnits) * 100));
+        const activePct = Math.max(0, Math.min(100 - occPct, (s.activeInquiryUnits / s.totalUnits) * 100));
+        const availPct = Math.max(0, 100 - occPct - activePct);
         return `
         <div class="occupancy-donut-wrap">
           <div class="occupancy-donut" style="background:conic-gradient(var(--emerald-700) 0% ${occPct}%, var(--blue-500) ${occPct}% ${occPct + activePct}%, var(--stone-300) ${occPct + activePct}% 100%);">

@@ -2074,9 +2074,9 @@ export default function PLUDLeasingTracker() {
               {stats.totalUnits === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No units in the listings inventory yet.</p>
               ) : (() => {
-                const occPct = (stats.occupied / stats.totalUnits) * 100;
-                const activePct = (stats.activeInquiryUnits / stats.totalUnits) * 100;
-                const availPct = 100 - occPct - activePct;
+                const occPct = Math.max(0, Math.min(100, (stats.occupied / stats.totalUnits) * 100));
+                const activePct = Math.max(0, Math.min(100 - occPct, (stats.activeInquiryUnits / stats.totalUnits) * 100));
+                const availPct = Math.max(0, 100 - occPct - activePct);
                 const legend = [
                   { name: "Occupied", count: stats.occupied, pct: occPct, color: "#123b31" },
                   { name: "Active inquiry", count: stats.activeInquiryUnits, pct: activePct, color: "#4d6f93" },
