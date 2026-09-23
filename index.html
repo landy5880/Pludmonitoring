@@ -546,6 +546,9 @@ const state = {
   tenantView: "table",
   draggingTenantId: null,
   detailTenantId: null,
+  detailMaintId: null,
+  maintActivities: [],
+  maintActivitiesLoading: false,
   activities: [],
   activitiesLoading: false,
   newActivityType: "Call",
@@ -1029,7 +1032,7 @@ function tabContentHtml() {
   if (state.tab === "dashboard") return dashboardHtml();
   if (state.tab === "tenants") return state.detailTenantId ? tenantDetailHtml() : tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
-  if (state.tab === "maintenance") return maintenanceTabHtml();
+  if (state.tab === "maintenance") return state.detailMaintId ? maintDetailHtml() : maintenanceTabHtml();
   if (state.tab === "reports") return reportsTabHtml();
   if (state.tab === "settings") return settingsHtml();
   return "";
@@ -1203,7 +1206,7 @@ function dashboardHtml() {
 
 function goToMaintenance(id) {
   state.tab = "maintenance";
-  openEditMaint(id);
+  openMaintDetail(id);
 }
 function goToTenantsFiltered(status) {
   state.tab = "tenants";
@@ -1548,6 +1551,11 @@ async function logActivity(entityType, entityId, activityType, note) {
       state.activities = [activityRowToState(row), ...state.activities];
       const el = document.getElementById("activity-timeline");
       if (el) el.innerHTML = activityTimelineHtml();
+    }
+    if (state.detailMaintId === entityId) {
+      state.maintActivities = [activityRowToState(row), ...state.maintActivities];
+      const el2 = document.getElementById("maint-activity-timeline");
+      if (el2) el2.innerHTML = maintActivityTimelineHtml();
     }
   } catch (e) {
     console.error("Log activity failed:", e);
@@ -2524,7 +2532,9 @@ function maintResultsHtml() {
             <td style="white-space:nowrap;">${fmtDate(m.reportedDate)}</td>
             <td>${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</td>
             <td>
-              <p class="cell-title">${esc(m.issue || "(no description)")}</p>
+              <button class="cell-link" onclick="openMaintDetail('${m.id}')">
+                <p class="cell-title" style="color:var(--teal-700);">${esc(m.issue || "(no description)")}</p>
+              </button>
               ${m.resolvedDate ? `<p class="cell-sub">Resolved ${fmtDate(m.resolvedDate)}</p>` : ""}
             </td>
             <td>${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}</td>
@@ -2656,6 +2666,8 @@ function saveMaint() {
     return;
   }
 
+  const isNew = !state.editingMaint;
+  const prevStatus = state.editingMaint ? state.editingMaint.status : null;
   const id = state.editingMaint ? state.editingMaint.id : uid("M");
   const record = { ...form, id };
 
@@ -2668,6 +2680,12 @@ function saveMaint() {
   state.editingMaint = null;
   state.maintFormError = "";
   render();
+
+  if (isNew) {
+    logActivity("maintenance", id, "Reported", `${record.priority} priority · ${record.issue}`);
+  } else if (prevStatus && prevStatus !== record.status) {
+    logActivity("maintenance", id, "Status Change", `${prevStatus} → ${record.status}`);
+  }
 
   sb.from("plud_maintenance").upsert(maintStateToRow(record)).then(({ error }) => {
     if (error) {
@@ -2711,6 +2729,137 @@ function confirmDeleteMaintDialogHtml() {
         <button class="btn btn-danger" onclick="confirmDeleteMaint()">Delete</button>
       </div>
     </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Maintenance detail page                                                 */
+/* ---------------------------------------------------------------------- */
+async function openMaintDetail(id) {
+  state.detailMaintId = id;
+  state.maintActivities = [];
+  state.maintActivitiesLoading = true;
+  render();
+  try {
+    const { data, error } = await sb.from("plud_activities").select("*").eq("entity_id", id).order("created_at", { ascending: false });
+    if (error) throw error;
+    state.maintActivities = data.filter((r) => r.entity_type === "maintenance").map(activityRowToState);
+  } catch (e) {
+    console.error("Load maintenance activities failed:", e);
+  }
+  state.maintActivitiesLoading = false;
+  render();
+}
+function closeMaintDetail() {
+  state.detailMaintId = null;
+  state.maintActivities = [];
+  render();
+}
+
+function maintActivityTimelineHtml() {
+  if (state.maintActivitiesLoading) return `<p class="empty-note">Loading activity...</p>`;
+  if (state.maintActivities.length === 0) return `<p class="empty-note">No activity logged yet.</p>`;
+  return `
+  <div class="timeline">
+    ${state.maintActivities.map((a) => `
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-body">
+          <p class="timeline-title">${esc(a.activityType)}${a.note ? `<span class="timeline-note"> — ${esc(a.note)}</span>` : ""}</p>
+          <p class="timeline-meta">${fmtDateTime(a.createdAt)}${a.createdBy ? ` · by ${esc(a.createdBy)}` : ""}</p>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function submitMaintComment() {
+  const note = document.getElementById("new-maint-comment").value.trim();
+  if (!note) return;
+  logActivity("maintenance", state.detailMaintId, "Comment", note);
+  document.getElementById("new-maint-comment").value = "";
+}
+
+function changeMaintStatusFromDetail(newStatus) {
+  const m = state.maintenance.find((x) => x.id === state.detailMaintId);
+  if (!m || m.status === newStatus) return;
+  const prevStatus = m.status;
+  const updated = { ...m, status: newStatus, resolvedDate: newStatus === "Resolved" && !m.resolvedDate ? new Date().toISOString().slice(0, 10) : m.resolvedDate };
+  state.maintenance = state.maintenance.map((x) => (x.id === m.id ? updated : x));
+  render();
+  logActivity("maintenance", m.id, "Status Change", `${prevStatus} → ${newStatus}`);
+  sb.from("plud_maintenance").upsert(maintStateToRow(updated)).then(({ error }) => {
+    if (error) console.error("Status update failed:", error);
+  });
+}
+
+function saveMaintAssignedTo() {
+  const m = state.maintenance.find((x) => x.id === state.detailMaintId);
+  if (!m) return;
+  const updated = { ...m, assignedTo: document.getElementById("d-maint-assignedTo").value };
+  state.maintenance = state.maintenance.map((x) => (x.id === m.id ? updated : x));
+  sb.from("plud_maintenance").upsert(maintStateToRow(updated)).then(({ error }) => {
+    if (error) console.error("Save assigned-to failed:", error);
+  });
+}
+
+function maintDetailHtml() {
+  const m = state.maintenance.find((x) => x.id === state.detailMaintId);
+  if (!m) return `<p class="empty-note">This maintenance request could not be found.</p>`;
+  return `
+  <div class="stack">
+    <button class="btn-link-back no-print" onclick="closeMaintDetail()">${icon("x", 14)} Back to Maintenance</button>
+
+    <div class="detail-header">
+      <div>
+        <h1 class="detail-title">Maintenance Request #${esc(m.id.slice(-5).toUpperCase())}</h1>
+        <p class="detail-sub">${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}
+        ${badgeHtml(m.status, MAINT_STATUS_STYLE)}
+        <button class="btn btn-outline" onclick="openEditMaint('${m.id}')">${icon("pencil", 14)} Edit</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <section class="panel">
+        <h2 class="section-title">Request information</h2>
+        <dl class="detail-dl">
+          <dt>Property</dt><dd>${esc(m.property) || "—"}</dd>
+          <dt>Unit</dt><dd>${esc(m.unit) || "—"}</dd>
+          <dt>Issue</dt><dd>${esc(m.issue) || "—"}</dd>
+          <dt>Reported date</dt><dd>${fmtDate(m.reportedDate)}</dd>
+          <dt>Resolved date</dt><dd>${m.resolvedDate ? fmtDate(m.resolvedDate) : "—"}</dd>
+        </dl>
+      </section>
+      <section class="panel">
+        <h2 class="section-title">Assignment &amp; status</h2>
+        <label><span class="field-label">Assigned to / contractor</span>
+          <input id="d-maint-assignedTo" class="input" placeholder="e.g. Building Engineering" value="${esc(m.assignedTo)}" onchange="saveMaintAssignedTo()" />
+        </label>
+        <label style="display:block;margin-top:12px;"><span class="field-label">Change status</span>
+          <select class="input" onchange="changeMaintStatusFromDetail(this.value)">
+            ${MAINT_STATUSES.map((s) => `<option value="${esc(s)}" ${m.status === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+          </select>
+        </label>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h2 class="section-title" style="margin:0;">Activity &amp; comments</h2>
+      </div>
+      <div class="add-activity-row no-print">
+        <input id="new-maint-comment" class="input" placeholder="Add a comment or update..." onkeydown="if(event.key==='Enter'){submitMaintComment();}" />
+        <button class="btn btn-primary" onclick="submitMaintComment()">${icon("plus", 14)} Add comment</button>
+      </div>
+      <div id="maint-activity-timeline">${maintActivityTimelineHtml()}</div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Notes</h2>
+      <p style="font-size:13px;color:var(--stone-600);white-space:pre-wrap;margin:0;">${esc(m.notes) || "—"}</p>
+    </section>
   </div>`;
 }
 

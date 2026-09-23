@@ -415,6 +415,110 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
   );
 }
 
+function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit, onChangeStatus, onSaveAssignedTo, onAddComment }) {
+  const [comment, setComment] = useState("");
+
+  const handleAddComment = () => {
+    const note = comment.trim();
+    if (!note) return;
+    onAddComment(note);
+    setComment("");
+  };
+
+  return (
+    <div className="space-y-6">
+      <button onClick={onBack} className="no-print flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700">
+        <X size={14} /> Back to Maintenance
+      </button>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-2xl font-semibold text-stone-900">Maintenance Request #{maint.id.slice(-5).toUpperCase()}</h1>
+          <p className="mt-0.5 text-sm text-stone-500">{maint.property}{maint.unit ? ` · ${maint.unit}` : ""}</p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Badge status={maint.priority} styleMap={MAINT_PRIORITY_STYLE} />
+          <Badge status={maint.status} styleMap={MAINT_STATUS_STYLE} />
+          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+            <Pencil size={14} /> Edit
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Request information</h2>
+          <dl className="space-y-2 text-sm">
+            <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Property</dt><dd className="text-stone-800">{maint.property || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Unit</dt><dd className="text-stone-800">{maint.unit || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Issue</dt><dd className="text-stone-800">{maint.issue || "—"}</dd></div>
+            <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Reported date</dt><dd className="text-stone-800">{fmtDate(maint.reportedDate)}</dd></div>
+            <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Resolved date</dt><dd className="text-stone-800">{maint.resolvedDate ? fmtDate(maint.resolvedDate) : "—"}</dd></div>
+          </dl>
+        </section>
+        <section className="rounded-lg border border-stone-200 bg-white p-4">
+          <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Assignment &amp; status</h2>
+          <Field label="Assigned to / contractor">
+            <input
+              className={inputCls}
+              placeholder="e.g. Building Engineering"
+              defaultValue={maint.assignedTo || ""}
+              onBlur={(e) => onSaveAssignedTo(e.target.value)}
+            />
+          </Field>
+          <div className="mt-3">
+            <Field label="Change status">
+              <select className={inputCls} value={maint.status} onChange={(e) => onChangeStatus(e.target.value)}>
+                {MAINT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+          </div>
+        </section>
+      </div>
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Activity &amp; comments</h2>
+        <div className="no-print mb-4 flex flex-wrap gap-2">
+          <input
+            className={`${inputCls} flex-1`}
+            placeholder="Add a comment or update..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddComment(); }}
+          />
+          <button onClick={handleAddComment} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+            <Plus size={14} /> Add comment
+          </button>
+        </div>
+        {activitiesLoading ? (
+          <p className="py-6 text-center text-sm text-stone-500">Loading activity...</p>
+        ) : activities.length === 0 ? (
+          <p className="py-6 text-center text-sm text-stone-500">No activity logged yet.</p>
+        ) : (
+          <div className="flex flex-col">
+            {activities.map((a) => (
+              <div key={a.id} className="flex gap-3 border-t border-stone-100 py-2.5 first:border-t-0">
+                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-700" />
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">
+                    {a.activityType}{a.note ? <span className="font-normal text-stone-600"> — {a.note}</span> : null}
+                  </p>
+                  <p className="mt-0.5 text-xs text-stone-400">{fmtDateTime(a.createdAt)}{a.createdBy ? ` · by ${a.createdBy}` : ""}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Notes</h2>
+        <p className="whitespace-pre-wrap text-sm text-stone-600">{maint.notes || "—"}</p>
+      </section>
+    </div>
+  );
+}
+
 function Badge({ status, styleMap }) {
   const map = styleMap || STATUS_STYLE;
   const s = map[status] || map["Inquired"] || Object.values(map)[0];
@@ -1075,6 +1179,9 @@ export default function PLUDLeasingTracker() {
   const [tenantView, setTenantView] = useState("table");
   const [draggingTenantId, setDraggingTenantId] = useState(null);
   const [detailTenantId, setDetailTenantId] = useState(null);
+  const [detailMaintId, setDetailMaintId] = useState(null);
+  const [maintActivities, setMaintActivities] = useState([]);
+  const [maintActivitiesLoading, setMaintActivitiesLoading] = useState(false);
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
 
@@ -1375,10 +1482,11 @@ export default function PLUDLeasingTracker() {
     try {
       await sbRequest("plud_activities", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) });
       setActivities((prev) => (detailTenantId === entityId ? [activityRowToState(row), ...prev] : prev));
+      setMaintActivities((prev) => (detailMaintId === entityId ? [activityRowToState(row), ...prev] : prev));
     } catch (e) {
       console.error("Log activity failed:", e);
     }
-  }, [user, detailTenantId]);
+  }, [user, detailTenantId, detailMaintId]);
 
   const saveTenant = useCallback((t) => {
     let prevStatus = null;
@@ -1428,6 +1536,45 @@ export default function PLUDLeasingTracker() {
     setActivities([]);
   }, []);
 
+  const openMaintDetail = useCallback(async (id) => {
+    setDetailMaintId(id);
+    setMaintActivities([]);
+    setMaintActivitiesLoading(true);
+    try {
+      const rows = await sbRequest(`plud_activities?entity_id=eq.${encodeURIComponent(id)}&entity_type=eq.maintenance&select=*&order=created_at.desc`);
+      setMaintActivities(rows.map(activityRowToState));
+    } catch (e) {
+      console.error("Load maintenance activities failed:", e);
+    }
+    setMaintActivitiesLoading(false);
+  }, []);
+  const closeMaintDetail = useCallback(() => {
+    setDetailMaintId(null);
+    setMaintActivities([]);
+  }, []);
+
+  const changeMaintStatusFromDetail = useCallback((id, newStatus) => {
+    setMaintenance((prev) => {
+      const m = prev.find((x) => x.id === id);
+      if (!m || m.status === newStatus) return prev;
+      const prevStatus = m.status;
+      const updated = { ...m, status: newStatus, resolvedDate: newStatus === "Resolved" && !m.resolvedDate ? new Date().toISOString().slice(0, 10) : m.resolvedDate };
+      logActivity("maintenance", id, "Status Change", `${prevStatus} → ${newStatus}`);
+      sbUpsert("plud_maintenance", [maintStateToRow(updated)]).catch((e) => console.error("Status update failed:", e));
+      return prev.map((x) => (x.id === id ? updated : x));
+    });
+  }, [logActivity]);
+
+  const saveMaintAssignedTo = useCallback((id, assignedTo) => {
+    setMaintenance((prev) => {
+      const m = prev.find((x) => x.id === id);
+      if (!m) return prev;
+      const updated = { ...m, assignedTo };
+      sbUpsert("plud_maintenance", [maintStateToRow(updated)]).catch((e) => console.error("Save assigned-to failed:", e));
+      return prev.map((x) => (x.id === id ? updated : x));
+    });
+  }, []);
+
   const saveFollowUpFields = useCallback((id, nextFollowUp, assignedTo) => {
     setTenants((prev) => {
       const t = prev.find((x) => x.id === id);
@@ -1459,16 +1606,25 @@ export default function PLUDLeasingTracker() {
   }, []);
 
   const saveMaint = useCallback((m) => {
+    let isNew = false;
+    let prevStatus = null;
     setMaintenance((prev) => {
-      const exists = prev.some((p) => p.id === m.id);
-      return exists ? prev.map((p) => (p.id === m.id ? m : p)) : [m, ...prev];
+      const existing = prev.find((p) => p.id === m.id);
+      isNew = !existing;
+      prevStatus = existing ? existing.status : null;
+      return existing ? prev.map((p) => (p.id === m.id ? m : p)) : [m, ...prev];
     });
     setEditingMaint(null);
     setShowNewMaint(false);
+    if (isNew) {
+      logActivity("maintenance", m.id, "Reported", `${m.priority} priority · ${m.issue}`);
+    } else if (prevStatus && prevStatus !== m.status) {
+      logActivity("maintenance", m.id, "Status Change", `${prevStatus} → ${m.status}`);
+    }
     sbUpsert("plud_maintenance", [maintStateToRow(m)])
       .then(() => setSaveError(""))
       .catch((e) => { console.error("Supabase save (maintenance) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
-  }, []);
+  }, [logActivity]);
 
   const deleteMaint = useCallback((id) => {
     setMaintenance((prev) => prev.filter((m) => m.id !== id));
@@ -1928,7 +2084,7 @@ export default function PLUDLeasingTracker() {
                   {stats.maintNeedsAttention.map((m) => (
                     <button
                       key={m.id}
-                      onClick={() => { setTab("maintenance"); setEditingMaint(m); }}
+                      onClick={() => { setTab("maintenance"); openMaintDetail(m.id); }}
                       className="flex w-full items-center justify-between gap-4 py-2.5 text-left hover:bg-stone-50"
                     >
                       <div className="min-w-0">
@@ -2215,7 +2371,20 @@ export default function PLUDLeasingTracker() {
             ))}
           </div>
         )}
-        {tab === "maintenance" && (
+        {tab === "maintenance" && detailMaintId && maintenance.find((m) => m.id === detailMaintId) && (
+          <MaintDetailView
+            maint={maintenance.find((m) => m.id === detailMaintId)}
+            activities={maintActivities}
+            activitiesLoading={maintActivitiesLoading}
+            onBack={closeMaintDetail}
+            onEdit={() => setEditingMaint(maintenance.find((m) => m.id === detailMaintId))}
+            onChangeStatus={(newStatus) => changeMaintStatusFromDetail(detailMaintId, newStatus)}
+            onSaveAssignedTo={(assignedTo) => saveMaintAssignedTo(detailMaintId, assignedTo)}
+            onAddComment={(note) => logActivity("maintenance", detailMaintId, "Comment", note)}
+          />
+        )}
+
+        {tab === "maintenance" && !detailMaintId && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <select className={`${inputCls} w-auto`} value={maintStatusFilter} onChange={(e) => setMaintStatusFilter(e.target.value)}>
@@ -2261,7 +2430,9 @@ export default function PLUDLeasingTracker() {
                           <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(m.reportedDate)}</td>
                           <td className="px-4 py-3 text-stone-600">{m.property}{m.unit ? ` · ${m.unit}` : ""}</td>
                           <td className="px-4 py-3">
-                            <p className="font-medium text-stone-900">{m.issue || "(no description)"}</p>
+                            <button onClick={() => openMaintDetail(m.id)} className="text-left font-medium text-stone-900 hover:text-violet-700 hover:underline">
+                              {m.issue || "(no description)"}
+                            </button>
                             {m.resolvedDate && <p className="text-xs text-stone-500">Resolved {fmtDate(m.resolvedDate)}</p>}
                           </td>
                           <td className="px-4 py-3"><Badge status={m.priority} styleMap={MAINT_PRIORITY_STYLE} /></td>
