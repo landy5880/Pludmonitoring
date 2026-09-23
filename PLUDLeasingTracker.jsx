@@ -311,14 +311,14 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
         </div>
         <div className="flex items-center gap-2.5">
           <Badge status={tenant.status} />
-          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             <Pencil size={14} /> Edit
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <section className="rounded-xl border border-stone-200 bg-white p-4">
           <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Contact information</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Contact person</dt><dd className="text-stone-800">{tenant.contact || "—"}</dd></div>
@@ -326,7 +326,7 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
             <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Email</dt><dd className="text-stone-800">{tenant.email || "—"}</dd></div>
           </dl>
         </section>
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <section className="rounded-xl border border-stone-200 bg-white p-4">
           <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Leasing information</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex gap-3"><dt className="w-36 shrink-0 text-stone-500">Category</dt><dd className="text-stone-800">{tenant.category || "—"}</dd></div>
@@ -337,7 +337,7 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
         </section>
       </div>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Follow-up</h2>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Next follow-up date">
@@ -369,7 +369,7 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Activity timeline</h2>
         <div className="no-print mb-4 flex flex-wrap gap-2">
           <select className={`${inputCls} w-auto`} value={activityType} onChange={(e) => setActivityType(e.target.value)}>
@@ -382,7 +382,7 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
             onChange={(e) => setActivityNote(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleAddActivity(); }}
           />
-          <button onClick={handleAddActivity} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+          <button onClick={handleAddActivity} className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950">
             <Plus size={14} /> Add activity
           </button>
         </div>
@@ -394,7 +394,7 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
           <div className="flex flex-col">
             {activities.map((a) => (
               <div key={a.id} className="flex gap-3 border-t border-stone-100 py-2.5 first:border-t-0">
-                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-700" />
+                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-900" />
                 <div>
                   <p className="text-sm font-semibold text-stone-800">
                     {a.activityType}{a.note ? <span className="font-normal text-stone-600"> — {a.note}</span> : null}
@@ -407,7 +407,7 @@ function TenantDetailView({ tenant, activities, activitiesLoading, onBack, onEdi
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Remarks</h2>
         <p className="whitespace-pre-wrap text-sm text-stone-600">{tenant.remarks || "—"}</p>
       </section>
@@ -439,14 +439,14 @@ function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit,
         <div className="flex items-center gap-2.5">
           <Badge status={maint.priority} styleMap={MAINT_PRIORITY_STYLE} />
           <Badge status={maint.status} styleMap={MAINT_STATUS_STYLE} />
-          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onEdit} className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             <Pencil size={14} /> Edit
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <section className="rounded-xl border border-stone-200 bg-white p-4">
           <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Request information</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Property</dt><dd className="text-stone-800">{maint.property || "—"}</dd></div>
@@ -456,7 +456,7 @@ function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit,
             <div className="flex gap-3"><dt className="w-32 shrink-0 text-stone-500">Resolved date</dt><dd className="text-stone-800">{maint.resolvedDate ? fmtDate(maint.resolvedDate) : "—"}</dd></div>
           </dl>
         </section>
-        <section className="rounded-lg border border-stone-200 bg-white p-4">
+        <section className="rounded-xl border border-stone-200 bg-white p-4">
           <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Assignment &amp; status</h2>
           <Field label="Assigned to / contractor">
             <input
@@ -476,7 +476,7 @@ function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit,
         </section>
       </div>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Activity &amp; comments</h2>
         <div className="no-print mb-4 flex flex-wrap gap-2">
           <input
@@ -486,7 +486,7 @@ function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit,
             onChange={(e) => setComment(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleAddComment(); }}
           />
-          <button onClick={handleAddComment} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+          <button onClick={handleAddComment} className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950">
             <Plus size={14} /> Add comment
           </button>
         </div>
@@ -498,7 +498,7 @@ function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit,
           <div className="flex flex-col">
             {activities.map((a) => (
               <div key={a.id} className="flex gap-3 border-t border-stone-100 py-2.5 first:border-t-0">
-                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-700" />
+                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-900" />
                 <div>
                   <p className="text-sm font-semibold text-stone-800">
                     {a.activityType}{a.note ? <span className="font-normal text-stone-600"> — {a.note}</span> : null}
@@ -511,7 +511,7 @@ function MaintDetailView({ maint, activities, activitiesLoading, onBack, onEdit,
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4">
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Notes</h2>
         <p className="whitespace-pre-wrap text-sm text-stone-600">{maint.notes || "—"}</p>
       </section>
@@ -532,7 +532,7 @@ function Badge({ status, styleMap }) {
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4">
+    <div className="rounded-xl border border-t-2 border-stone-200 border-t-emerald-900 bg-white p-4">
       <p className="text-xs font-medium text-stone-500">{label}</p>
       <p className={`mt-1.5 font-serif text-2xl font-semibold ${accent || "text-stone-900"}`}>{value}</p>
       {sub ? <p className="mt-1 text-xs text-stone-500">{sub}</p> : null}
@@ -549,7 +549,7 @@ function Field({ label, children }) {
   );
 }
 
-const inputCls = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
+const inputCls = "w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600";
 
 function TenantModal({ initial, onClose, onSave, existingUnitsByProperty, categoryOptions, conceptOptionsFor, statusOptions }) {
   const [form, setForm] = useState(
@@ -582,19 +582,19 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty, catego
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <h2 className="font-serif text-base font-semibold text-stone-900">
             {initial ? "Edit inquiry" : "New inquiry"}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
         <div className="space-y-4 px-6 py-5">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
               <AlertCircle size={16} /> {error}
             </div>
           )}
@@ -676,10 +676,10 @@ function TenantModal({ initial, onClose, onSave, existingUnitsByProperty, catego
         </div>
 
         <div className="flex justify-end gap-2 border-t border-stone-200 px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onClose} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
-          <button onClick={handleSave} className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800">
+          <button onClick={handleSave} className="rounded-xl bg-emerald-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-950">
             {initial ? "Save changes" : "Add inquiry"}
           </button>
         </div>
@@ -708,19 +708,19 @@ function MaintModal({ initial, onClose, onSave, existingUnitsByProperty }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <h2 className="font-serif text-base font-semibold text-stone-900">
             {initial ? "Edit maintenance request" : "New maintenance request"}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
         <div className="space-y-4 px-6 py-5">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
               <AlertCircle size={16} /> {error}
             </div>
           )}
@@ -776,10 +776,10 @@ function MaintModal({ initial, onClose, onSave, existingUnitsByProperty }) {
         </div>
 
         <div className="flex justify-end gap-2 border-t border-stone-200 px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onClose} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
-          <button onClick={handleSave} className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800">
+          <button onClick={handleSave} className="rounded-xl bg-emerald-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-950">
             {initial ? "Save changes" : "Add request"}
           </button>
         </div>
@@ -817,18 +817,18 @@ function ListingModal({ listing, isNew, onClose, onSave, existingListings }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <h2 className="font-serif text-base font-semibold text-stone-900">
             {isNew ? "Add listing" : `${listing.property} · ${listing.unit}`}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
             <X size={18} />
           </button>
         </div>
         <div className="space-y-4 px-6 py-5">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
               <AlertCircle size={16} /> {error}
             </div>
           )}
@@ -863,10 +863,10 @@ function ListingModal({ listing, isNew, onClose, onSave, existingListings }) {
           </Field>
         </div>
         <div className="flex justify-end gap-2 border-t border-stone-200 px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onClose} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
-          <button onClick={handleSave} className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800">
+          <button onClick={handleSave} className="rounded-xl bg-emerald-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-950">
             {isNew ? "Add listing" : "Save changes"}
           </button>
         </div>
@@ -884,7 +884,7 @@ function ListOptionPanel({ title, fixedOptions, customOptions, onAdd, onDeleteId
   };
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-4">
+    <section className="rounded-xl border border-stone-200 bg-white p-4">
       <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">{title}</h2>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <input
@@ -894,16 +894,16 @@ function ListOptionPanel({ title, fixedOptions, customOptions, onAdd, onDeleteId
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
-        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950">
           <Plus size={14} /> Add
         </button>
       </div>
       {error && (
-        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
           <AlertCircle size={16} /> {error}
         </div>
       )}
-      <div className="max-h-60 overflow-y-auto rounded-lg border border-stone-200">
+      <div className="max-h-60 overflow-y-auto rounded-xl border border-stone-200">
         {fixedOptions.map((c) => (
           <div key={c} className="flex items-center justify-between gap-3 border-b border-stone-100 px-3.5 py-2.5 text-sm last:border-b-0">
             <span className="font-medium text-stone-800">{c} <span className="text-xs font-normal text-stone-400">(built-in)</span></span>
@@ -936,7 +936,7 @@ function ConceptOptionsPanel({ categories, customConcepts, selectedCategory, onS
   };
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-4">
+    <section className="rounded-xl border border-stone-200 bg-white p-4">
       <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Concepts</h2>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <select className={`${inputCls} w-auto`} value={cat} onChange={(e) => onSelectCategory(e.target.value)}>
@@ -949,19 +949,19 @@ function ConceptOptionsPanel({ categories, customConcepts, selectedCategory, onS
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
         />
-        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+        <button onClick={handleAdd} className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950">
           <Plus size={14} /> Add
         </button>
       </div>
       {error && (
-        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
           <AlertCircle size={16} /> {error}
         </div>
       )}
       {fixed.length === 0 && custom.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-stone-300 py-6 text-center text-sm text-stone-500">No concepts yet for this category.</p>
+        <p className="rounded-xl border border-dashed border-stone-300 py-6 text-center text-sm text-stone-500">No concepts yet for this category.</p>
       ) : (
-        <div className="max-h-60 overflow-y-auto rounded-lg border border-stone-200">
+        <div className="max-h-60 overflow-y-auto rounded-xl border border-stone-200">
           {fixed.map((c) => (
             <div key={c} className="flex items-center justify-between gap-3 border-b border-stone-100 px-3.5 py-2.5 text-sm last:border-b-0">
               <span className="font-medium text-stone-800">{c} <span className="text-xs font-normal text-stone-400">(built-in)</span></span>
@@ -1000,16 +1000,16 @@ function UserModal({ onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
           <h2 className="font-serif text-base font-semibold text-stone-900">Add user</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+          <button onClick={onClose} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
             <X size={18} />
           </button>
         </div>
         <div className="space-y-4 px-6 py-5">
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
               <AlertCircle size={16} /> {error}
             </div>
           )}
@@ -1032,13 +1032,13 @@ function UserModal({ onClose, onSave }) {
           </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-stone-200 px-6 py-4">
-          <button onClick={onClose} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onClose} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={submitting}
-            className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-60"
+            className="rounded-xl bg-emerald-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-950 disabled:opacity-60"
           >
             Add user
           </button>
@@ -1050,14 +1050,14 @@ function UserModal({ onClose, onSave }) {
 
 function ConfirmDialog({ title, body, onCancel, onConfirm, confirmLabel = "Delete" }) {  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
         <h2 className="font-serif text-base font-semibold text-stone-900">{title}</h2>
         <p className="mt-2 text-sm text-stone-600">{body}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onCancel} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <button onClick={onCancel} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
             Cancel
           </button>
-          <button onClick={onConfirm} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">
+          <button onClick={onConfirm} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">
             {confirmLabel}
           </button>
         </div>
@@ -1087,10 +1087,11 @@ function LoginScreen({ onLoginWithPassword }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-900 px-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-lg border border-stone-200 bg-white p-8 shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-emerald-900 px-4">
+      <style>{"@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap'); .font-serif{font-family:'Manrope','DM Sans',sans-serif !important;} body,input,select,button,textarea{font-family:'DM Sans',sans-serif;} @media (prefers-reduced-motion: no-preference) { button, a, [role='button'] { transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease; } button:not(:disabled):active, a:active, [role='button']:active { transform: scale(0.98); } }"}</style>
+      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-stone-200 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-violet-700 font-serif text-base text-violet-700">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-900 font-serif text-base text-emerald-900">
             P
           </div>
           <div>
@@ -1102,7 +1103,7 @@ function LoginScreen({ onLoginWithPassword }) {
         <p className="mb-5 text-sm text-stone-600">Sign in to view and manage the leasing pipeline.</p>
 
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <div className="mb-4 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
             <AlertCircle size={16} /> {error}
           </div>
         )}
@@ -1133,7 +1134,7 @@ function LoginScreen({ onLoginWithPassword }) {
         <button
           type="submit"
           disabled={submitting}
-          className="relative mt-6 w-full overflow-hidden rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-90"
+          className="relative mt-6 w-full overflow-hidden rounded-xl bg-emerald-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-950 disabled:opacity-90"
         >
           {submitting ? "Signing in" : "Sign in"}
           {submitting && (
@@ -1858,17 +1859,17 @@ export default function PLUDLeasingTracker() {
   if (userLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3.5 bg-slate-900">
-        <div className="flex h-11 w-11 items-center justify-center rounded-md border border-violet-400 font-serif text-lg text-violet-400">
+        <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-lime-300 font-serif text-lg text-lime-300">
           P
         </div>
         <div className="text-center">
           <h1 className="font-serif text-base font-semibold text-stone-100">PLUD</h1>
-          <p className="mt-0.5 text-xs text-zinc-400">Leasing Tracker</p>
+          <p className="mt-0.5 text-xs text-emerald-300">Leasing Tracker</p>
         </div>
         <div className="relative mt-1 h-1 w-44 overflow-hidden rounded-full bg-white/15">
           <style>{"@keyframes btn-indeterminate{0%{left:-36%;}100%{left:100%;}}"}</style>
           <div
-            className="absolute inset-y-0 w-1/3 rounded-full bg-violet-400"
+            className="absolute inset-y-0 w-1/3 rounded-full bg-lime-300"
             style={{ animation: "btn-indeterminate 1.1s ease-in-out infinite" }}
           />
         </div>
@@ -1887,7 +1888,7 @@ export default function PLUDLeasingTracker() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center bg-stone-50">
-        <Loader2 className="animate-spin text-violet-700" size={28} />
+        <Loader2 className="animate-spin text-emerald-900" size={28} />
       </div>
     );
   }
@@ -1912,30 +1913,30 @@ export default function PLUDLeasingTracker() {
 
   return (
     <div className="flex min-h-screen bg-stone-50 text-stone-900">
-      <style>{"@media print{.no-print{display:none !important;}}"}</style>
-      <aside className="no-print flex w-64 shrink-0 flex-col bg-zinc-900">
-        <div className="flex items-center gap-2.5 border-b border-zinc-800 px-5 py-5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-violet-400 font-serif text-sm text-violet-400">
+      <style>{"@media print{.no-print{display:none !important;}} @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap'); .font-serif{font-family:'Manrope','DM Sans',sans-serif !important;} body,input,select,button,textarea{font-family:'DM Sans',sans-serif;} @media (prefers-reduced-motion: no-preference) { button, a, [role='button'] { transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease; } button:not(:disabled):active, a:active, [role='button']:active { transform: scale(0.98); } }"}</style>
+      <aside className="no-print flex w-64 shrink-0 flex-col bg-emerald-900">
+        <div className="flex items-center gap-2.5 border-b border-emerald-800 px-5 py-5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-lime-300 font-serif text-sm text-lime-300">
             P
           </div>
           <div>
             <h1 className="font-serif text-base font-semibold leading-tight text-stone-100">PLUD</h1>
-            <p className="text-xs text-zinc-400">Leasing Tracker</p>
+            <p className="text-xs text-emerald-300">Leasing Tracker</p>
           </div>
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
           {navGroups.map((g, gi) => (
             <div key={gi} className={gi > 0 ? "mt-3" : ""}>
-              {g.label && <p className="mb-1 mt-2 px-3 text-xs font-semibold text-zinc-500">{g.label}</p>}
+              {g.label && <p className="mb-1 mt-2 px-3 text-xs font-semibold text-emerald-600">{g.label}</p>}
               {g.items.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setTab(id)}
-                  className={`flex w-full items-center gap-2.5 rounded-md border-l-4 px-3 py-2.5 text-left text-sm font-medium transition ${
+                  className={`flex w-full items-center gap-2.5 rounded-lg border-l-4 px-3 py-2.5 text-left text-sm font-medium transition ${
                     tab === id
-                      ? "border-violet-400 bg-zinc-800 text-stone-100"
-                      : "border-transparent text-zinc-400 hover:bg-zinc-800 hover:text-stone-100"
+                      ? "border-lime-300 bg-emerald-800 text-stone-100"
+                      : "border-transparent text-emerald-300 hover:bg-emerald-800 hover:text-stone-100"
                   }`}
                 >
                   <Icon size={16} /> {label}
@@ -1945,14 +1946,14 @@ export default function PLUDLeasingTracker() {
           ))}
         </nav>
 
-        <div className="border-t border-zinc-800 px-4 py-4">
+        <div className="border-t border-emerald-800 px-4 py-4">
           <div className="mb-3 min-w-0">
             <p className="truncate text-sm font-medium text-stone-100">{user.name}</p>
-            {user.role ? <p className="truncate text-xs text-zinc-400">{user.role}</p> : null}
+            {user.role ? <p className="truncate text-xs text-emerald-300">{user.role}</p> : null}
           </div>
           <button
             onClick={() => setShowSignOutConfirm(true)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-700 px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-800"
           >
             <LogOut size={15} /> Sign out
           </button>
@@ -1978,13 +1979,13 @@ export default function PLUDLeasingTracker() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setShowNewTenant(true)} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                <button onClick={() => setShowNewTenant(true)} className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
                   <Plus size={15} /> New inquiry
                 </button>
-                <button onClick={() => setShowNewMaint(true)} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                <button onClick={() => setShowNewMaint(true)} className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
                   <Plus size={15} /> New maintenance request
                 </button>
-                <button onClick={() => setShowNewListing(true)} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                <button onClick={() => setShowNewListing(true)} className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
                   <Plus size={15} /> Add unit
                 </button>
               </div>
@@ -2002,14 +2003,14 @@ export default function PLUDLeasingTracker() {
                 { label: "Open maintenance", value: stats.maintOpen, onClick: () => goToMaintenanceFiltered("Open"), accent: "text-rose-700" },
                 { label: "Overdue follow-ups", value: stats.overdueFollowUps, onClick: () => goToFollowUps("Overdue"), accent: "text-rose-700" },
               ].map((k) => (
-                <button key={k.label} onClick={k.onClick} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left transition hover:border-stone-300 hover:shadow-sm">
+                <button key={k.label} onClick={k.onClick} className="rounded-xl border border-t-2 border-stone-200 border-t-emerald-900 bg-white p-4 text-left transition hover:border-stone-300 hover:shadow-sm">
                   <p className="text-xs font-medium text-stone-500">{k.label}</p>
                   <p className={`mt-1.5 font-serif text-2xl font-semibold ${k.accent || "text-stone-900"}`}>{k.value}</p>
                 </button>
               ))}
             </section>
 
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Leasing pipeline</h2>
               <div className="space-y-3">
                 {stats.pipelineFunnel.map((f) => {
@@ -2030,7 +2031,7 @@ export default function PLUDLeasingTracker() {
               </div>
             </section>
 
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Property occupancy</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -2055,7 +2056,7 @@ export default function PLUDLeasingTracker() {
                         <td className="py-2.5 pl-3">
                           <div className="flex items-center gap-2">
                             <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-100">
-                              <div className="h-full rounded-full bg-violet-700" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
+                              <div className="h-full rounded-full bg-emerald-900" style={{ width: `${Math.round(p.occupancyPct * 100)}%` }} />
                             </div>
                             <span className="w-9 shrink-0 text-right text-xs text-stone-600">{Math.round(p.occupancyPct * 100)}%</span>
                           </div>
@@ -2068,7 +2069,7 @@ export default function PLUDLeasingTracker() {
             </section>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <section className="rounded-xl border border-stone-200 bg-white p-4">
                 <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-serif text-sm font-semibold text-stone-900">Needs follow-up</h2>
                   <div className="flex gap-1.5">
@@ -2107,7 +2108,7 @@ export default function PLUDLeasingTracker() {
                 <p className="mt-2.5 text-xs text-stone-400">Based on time since last status change. The chips above use each inquiry's scheduled next follow-up date instead.</p>
               </section>
 
-              <section className="rounded-lg border border-stone-200 bg-white p-4">
+              <section className="rounded-xl border border-stone-200 bg-white p-4">
                 <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Upcoming activities</h2>
                 {stats.upcoming.length === 0 ? (
                   <p className="py-6 text-center text-sm text-stone-500">Nothing scheduled in the next 7 days.</p>
@@ -2146,7 +2147,7 @@ export default function PLUDLeasingTracker() {
               </div>
             </section>
 
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Needs attention (maintenance)</h2>
               {stats.maintNeedsAttention.length === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No open or in-progress maintenance requests.</p>
@@ -2171,7 +2172,7 @@ export default function PLUDLeasingTracker() {
               )}
             </section>
 
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Recent leasing activity</h2>
               {stats.pipeline.length === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No active inquiries right now.</p>
@@ -2230,23 +2231,23 @@ export default function PLUDLeasingTracker() {
                 <option value="All">All properties</option>
                 {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
-              <div className="flex shrink-0 overflow-hidden rounded-lg border border-stone-300">
+              <div className="flex shrink-0 overflow-hidden rounded-xl border border-stone-300">
                 <button
                   onClick={() => setTenantView("table")}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${tenantView === "table" ? "bg-violet-700 text-white" : "bg-white text-stone-600"}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${tenantView === "table" ? "bg-emerald-900 text-white" : "bg-white text-stone-600"}`}
                 >
                   <LayoutDashboard size={14} /> Table
                 </button>
                 <button
                   onClick={() => setTenantView("kanban")}
-                  className={`flex items-center gap-1.5 border-l border-stone-300 px-3 py-2 text-sm font-medium ${tenantView === "kanban" ? "bg-violet-700 text-white" : "bg-white text-stone-600"}`}
+                  className={`flex items-center gap-1.5 border-l border-stone-300 px-3 py-2 text-sm font-medium ${tenantView === "kanban" ? "bg-emerald-900 text-white" : "bg-white text-stone-600"}`}
                 >
                   <Building2 size={14} /> Kanban
                 </button>
               </div>
               <button
                 onClick={() => setShowNewTenant(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3.5 py-2 text-sm font-medium text-white hover:bg-violet-800"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-emerald-950"
               >
                 <Plus size={16} /> New inquiry
               </button>
@@ -2267,7 +2268,7 @@ export default function PLUDLeasingTracker() {
                         if (id) updateTenantStatus(id, status);
                         setDraggingTenantId(null);
                       }}
-                      className="flex max-h-96 w-64 shrink-0 flex-col rounded-lg bg-stone-100"
+                      className="flex max-h-96 w-64 shrink-0 flex-col rounded-xl bg-stone-100"
                     >
                       <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
                         <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
@@ -2284,12 +2285,12 @@ export default function PLUDLeasingTracker() {
                             onDragStart={(e) => { setDraggingTenantId(t.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", t.id); }}
                             onDragEnd={() => setDraggingTenantId(null)}
                             onClick={() => openTenantDetail(t.id)}
-                            className="cursor-grab rounded-lg border border-stone-200 bg-white p-2.5 shadow-sm hover:border-stone-300 hover:shadow"
+                            className="cursor-grab rounded-xl border border-stone-200 bg-white p-2.5 shadow-sm hover:border-stone-300 hover:shadow"
                           >
                             <p className="text-sm font-semibold text-stone-900">{t.brand || t.concept || "(no brand/concept yet)"}</p>
                             <p className="mt-0.5 text-xs text-stone-500">{t.contact}</p>
                             <p className="text-xs text-stone-500">{t.property}{t.unit ? ` · ${t.unit}` : ""}</p>
-                            {t.category && <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-violet-700">{t.category}</span>}
+                            {t.category && <span className="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-emerald-900">{t.category}</span>}
                           </div>
                         ))}
                       </div>
@@ -2298,12 +2299,12 @@ export default function PLUDLeasingTracker() {
                 })}
               </div>
             ) : filteredTenants.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-stone-300 bg-white py-14 text-center">
+              <div className="rounded-xl border border-dashed border-stone-300 bg-white py-14 text-center">
                 <p className="text-sm font-medium text-stone-700">No inquiries match these filters.</p>
                 <p className="mt-1 text-xs text-stone-500">Try clearing search or filters, or add a new inquiry.</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+              <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[900px] text-left text-sm">
                     <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2322,7 +2323,7 @@ export default function PLUDLeasingTracker() {
                         <tr key={t.id} className="hover:bg-stone-50">
                           <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(t.dateInquired)}</td>
                           <td className="px-4 py-3">
-                            <button onClick={() => openTenantDetail(t.id)} className="text-left font-medium text-stone-900 hover:text-violet-700 hover:underline">
+                            <button onClick={() => openTenantDetail(t.id)} className="text-left font-medium text-stone-900 hover:text-emerald-900 hover:underline">
                               {t.brand || t.concept || "(no brand/concept yet)"}
                             </button>
                             <p className="text-xs text-stone-500">{t.concept}</p>
@@ -2336,10 +2337,10 @@ export default function PLUDLeasingTracker() {
                           <td className="px-4 py-3"><Badge status={t.status} /></td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1">
-                              <button onClick={() => setEditingTenant(t)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-violet-700" aria-label="Edit">
+                              <button onClick={() => setEditingTenant(t)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-emerald-900" aria-label="Edit">
                                 <Pencil size={15} />
                               </button>
-                              <button onClick={() => setDeletingTenantId(t.id)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
+                              <button onClick={() => setDeletingTenantId(t.id)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
                                 <Trash2 size={15} />
                               </button>
                             </div>
@@ -2368,22 +2369,22 @@ export default function PLUDLeasingTracker() {
               </div>
               <button
                 onClick={() => setShowNewListing(true)}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
+                className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950"
               >
                 <Plus size={16} /> Add listing
               </button>
             </div>
             {PROPERTIES.filter((p) => filteredListings.some((l) => l.property === p)).length === 0 ? (
-              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
+              <div className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
                 <p className="text-sm font-medium text-stone-700">No units match "{listingSearch}".</p>
                 <p className="mt-1 text-xs text-stone-500">Try a different unit number, property name, or status.</p>
               </div>
             ) : PROPERTIES.filter((p) => filteredListings.some((l) => l.property === p)).map((property) => (
               <section key={property}>
                 <h2 className="mb-2 flex items-center gap-2 font-serif text-sm font-semibold text-stone-900">
-                  <MapPin size={14} className="text-violet-700" /> {property}
+                  <MapPin size={14} className="text-emerald-900" /> {property}
                 </h2>
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[700px] text-left text-sm">
                       <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2424,7 +2425,7 @@ export default function PLUDLeasingTracker() {
                                     setTenantStatusFilter("All");
                                     setTenantSearch(l.unit);
                                   }}
-                                  className="font-semibold text-violet-700 underline decoration-1 underline-offset-2 hover:text-violet-800"
+                                  className="font-semibold text-emerald-900 underline decoration-1 underline-offset-2 hover:text-emerald-950"
                                 >
                                   {l.count}
                                 </button>
@@ -2436,12 +2437,12 @@ export default function PLUDLeasingTracker() {
                               {(!l.floorArea && !l.askingRate) ? (
                                 <button
                                   onClick={() => setEditingListing(l)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-violet-700 px-2.5 py-1 text-xs font-medium text-violet-700 hover:bg-amber-50"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-900 px-2.5 py-1 text-xs font-medium text-emerald-900 hover:bg-amber-50"
                                 >
                                   <Plus size={13} /> Add details
                                 </button>
                               ) : (
-                                <button onClick={() => setEditingListing(l)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-violet-700" aria-label="Edit">
+                                <button onClick={() => setEditingListing(l)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-emerald-900" aria-label="Edit">
                                   <Pencil size={15} />
                                 </button>
                               )}
@@ -2483,19 +2484,19 @@ export default function PLUDLeasingTracker() {
               <div className="flex-1" />
               <button
                 onClick={() => setShowNewMaint(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950"
               >
                 <Plus size={16} /> New request
               </button>
             </div>
 
             {filteredMaintenance.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
+              <div className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
                 <p className="text-sm font-medium text-stone-700">No maintenance requests match these filters.</p>
                 <p className="mt-1 text-xs text-stone-500">Try clearing filters, or log a new request.</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+              <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2515,7 +2516,7 @@ export default function PLUDLeasingTracker() {
                           <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(m.reportedDate)}</td>
                           <td className="px-4 py-3 text-stone-600">{m.property}{m.unit ? ` · ${m.unit}` : ""}</td>
                           <td className="px-4 py-3">
-                            <button onClick={() => openMaintDetail(m.id)} className="text-left font-medium text-stone-900 hover:text-violet-700 hover:underline">
+                            <button onClick={() => openMaintDetail(m.id)} className="text-left font-medium text-stone-900 hover:text-emerald-900 hover:underline">
                               {m.issue || "(no description)"}
                             </button>
                             {m.resolvedDate && <p className="text-xs text-stone-500">Resolved {fmtDate(m.resolvedDate)}</p>}
@@ -2525,10 +2526,10 @@ export default function PLUDLeasingTracker() {
                           <td className="px-4 py-3"><Badge status={m.status} styleMap={MAINT_STATUS_STYLE} /></td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1">
-                              <button onClick={() => setEditingMaint(m)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-violet-700" aria-label="Edit">
+                              <button onClick={() => setEditingMaint(m)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-emerald-900" aria-label="Edit">
                                 <Pencil size={15} />
                               </button>
-                              <button onClick={() => setDeletingMaintId(m.id)} className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
+                              <button onClick={() => setDeletingMaintId(m.id)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
                                 <Trash2 size={15} />
                               </button>
                             </div>
@@ -2550,24 +2551,24 @@ export default function PLUDLeasingTracker() {
               <p className="text-sm text-stone-500">Every active inquiry with a scheduled next follow-up date.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <button onClick={() => setFollowUpFilter("All")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+              <button onClick={() => setFollowUpFilter("All")} className="rounded-xl border border-t-2 border-stone-200 border-t-emerald-900 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
                 <p className="text-xs font-medium text-stone-500">All</p>
                 <p className="mt-1.5 font-serif text-2xl font-semibold text-stone-900">{allFollowUps.length}</p>
               </button>
-              <button onClick={() => setFollowUpFilter("Overdue")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+              <button onClick={() => setFollowUpFilter("Overdue")} className="rounded-xl border border-t-2 border-stone-200 border-t-emerald-900 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
                 <p className="text-xs font-medium text-stone-500">Overdue</p>
                 <p className="mt-1.5 font-serif text-2xl font-semibold text-rose-700">{stats.overdueFollowUps}</p>
               </button>
-              <button onClick={() => setFollowUpFilter("Due Today")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+              <button onClick={() => setFollowUpFilter("Due Today")} className="rounded-xl border border-t-2 border-stone-200 border-t-emerald-900 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
                 <p className="text-xs font-medium text-stone-500">Due today</p>
                 <p className="mt-1.5 font-serif text-2xl font-semibold text-amber-700">{stats.dueTodayFollowUps}</p>
               </button>
-              <button onClick={() => setFollowUpFilter("Upcoming")} className="rounded-lg border border-t-2 border-stone-200 border-t-violet-700 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
+              <button onClick={() => setFollowUpFilter("Upcoming")} className="rounded-xl border border-t-2 border-stone-200 border-t-emerald-900 bg-white p-4 text-left hover:border-stone-300 hover:shadow-sm">
                 <p className="text-xs font-medium text-stone-500">Upcoming</p>
                 <p className="mt-1.5 font-serif text-2xl font-semibold text-blue-700">{stats.upcomingFollowUpsCount}</p>
               </button>
             </div>
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-serif text-sm font-semibold text-stone-900">{followUpFilter === "All" ? "All follow-ups" : followUpFilter}</h2>
                 {followUpFilter !== "All" && (
@@ -2596,7 +2597,7 @@ export default function PLUDLeasingTracker() {
                         <tr key={t.id} className={t.followUpStatus === "Overdue" ? "bg-rose-50" : "hover:bg-stone-50"}>
                           <td className="whitespace-nowrap px-4 py-3 font-medium text-stone-900">{fmtDate(t.nextFollowUp)}</td>
                           <td className="px-4 py-3">
-                            <button onClick={() => openTenantDetail(t.id)} className="font-medium text-violet-700 hover:underline">
+                            <button onClick={() => openTenantDetail(t.id)} className="font-medium text-emerald-900 hover:underline">
                               {t.brand || t.concept || "(no brand/concept yet)"}
                             </button>
                           </td>
@@ -2631,23 +2632,23 @@ export default function PLUDLeasingTracker() {
                 <p className="text-sm text-stone-500">Export or print a snapshot of your leasing, occupancy, or maintenance data.</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
                   <Printer size={16} /> Print
                 </button>
-                <button onClick={exportReportCsv} className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800">
+                <button onClick={exportReportCsv} className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950">
                   <Download size={16} /> Export CSV
                 </button>
               </div>
             </div>
 
-            <div className="no-print mb-4 max-w-xs overflow-hidden rounded-lg border border-stone-200">
+            <div className="no-print mb-4 max-w-xs overflow-hidden rounded-xl border border-stone-200">
               {REPORT_TYPES.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => setReportType(r.id)}
                   className={`block w-full border-b border-stone-100 px-3.5 py-2.5 text-left text-sm font-medium last:border-b-0 ${
                     reportType === r.id
-                      ? "border-l-4 border-l-violet-700 bg-violet-50 font-semibold text-violet-800"
+                      ? "border-l-4 border-l-emerald-900 bg-emerald-50 font-semibold text-emerald-950"
                       : "border-l-4 border-l-transparent text-stone-700 hover:bg-stone-50"
                   }`}
                 >
@@ -2688,7 +2689,7 @@ export default function PLUDLeasingTracker() {
                   <StatCard label="Awarded / leased" value={reportPipelineRows.filter((r) => r.status === "Awarded/ Leased").length} accent="text-emerald-700" />
                   <StatCard label="Lost / inactive" value={reportPipelineRows.filter((r) => r.status === "Lost/ Inactive").length} accent="text-rose-700" />
                 </div>
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2733,7 +2734,7 @@ export default function PLUDLeasingTracker() {
                   <StatCard label="Resolved" value={reportMaintenanceRows.filter((r) => r.status === "Resolved").length} accent="text-emerald-700" />
                   <StatCard label="Urgent priority" value={reportMaintenanceRows.filter((r) => r.priority === "Urgent").length} accent="text-rose-700" />
                 </div>
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2777,7 +2778,7 @@ export default function PLUDLeasingTracker() {
                     value={`${reportOccupancyRows.length ? Math.round((reportOccupancyRows.filter((r) => r.kind === "occupied").length / reportOccupancyRows.length) * 100) : 0}%`}
                   />
                 </div>
-                <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+                <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2816,18 +2817,18 @@ export default function PLUDLeasingTracker() {
               <p className="text-sm text-stone-500">Manage sign-in, users, and the category/concept/status options used across the pipeline.</p>
             </div>
 
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <h2 className="mb-3 font-serif text-sm font-semibold text-stone-900">Quick actions</h2>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowNewTenant(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                  className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
                 >
                   <Plus size={16} /> Add tenant
                 </button>
                 <button
                   onClick={() => setShowNewListing(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                  className="flex items-center gap-1.5 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
                 >
                   <Plus size={16} /> Add listing
                 </button>
@@ -2835,12 +2836,12 @@ export default function PLUDLeasingTracker() {
               <p className="mt-2.5 text-xs text-stone-500">Opens the same forms used on the Prospective tenants and PLUD listings tabs.</p>
             </section>
 
-            <section className="rounded-lg border border-stone-200 bg-white p-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="font-serif text-sm font-semibold text-stone-900">Users</h2>
                 <button
                   onClick={() => setShowNewUser(true)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-sm font-medium text-white hover:bg-violet-800"
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950"
                 >
                   <Plus size={16} /> Add user
                 </button>
@@ -2848,7 +2849,7 @@ export default function PLUDLeasingTracker() {
               {users.length === 0 ? (
                 <p className="py-6 text-center text-sm text-stone-500">No users found.</p>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-stone-200">
+                <div className="overflow-hidden rounded-xl border border-stone-200">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
@@ -2875,7 +2876,7 @@ export default function PLUDLeasingTracker() {
                                 onClick={() => setDeletingUserId(u.id)}
                                 disabled={users.length <= 1}
                                 title={users.length <= 1 ? "At least one user must remain" : undefined}
-                                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
+                                className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
                                 aria-label="Delete"
                               >
                                 <Trash2 size={15} />
