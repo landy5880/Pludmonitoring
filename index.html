@@ -550,7 +550,6 @@ const state = {
   detailMaintId: null,
   maintActivities: [],
   maintActivitiesLoading: false,
-  globalSearchQuery: "",
   followUpFilter: "All",
   activities: [],
   activitiesLoading: false,
@@ -953,100 +952,6 @@ function goToFollowUps(filter) {
   render();
 }
 
-function globalSearchResults(query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return { units: [], prospects: [], maintenance: [] };
-  const units = listingsComputed().filter((l) =>
-    [l.property, l.unit].some((v) => (v || "").toLowerCase().includes(q))
-  ).slice(0, 8);
-  const prospects = state.tenants.filter((t) =>
-    [t.brand, t.contact, t.concept, t.property, t.unit, t.email].some((v) => (v || "").toLowerCase().includes(q))
-  ).slice(0, 8);
-  const maintenance = state.maintenance.filter((m) =>
-    [m.issue, m.property, m.unit, m.assignedTo].some((v) => (v || "").toLowerCase().includes(q))
-  ).slice(0, 8);
-  return { units, prospects, maintenance };
-}
-
-function searchTabHtml() {
-  const q = state.globalSearchQuery;
-  const results = globalSearchResults(q);
-  const hasQuery = q.trim().length > 0;
-  const totalResults = results.units.length + results.prospects.length + results.maintenance.length;
-  return `
-  <div class="stack">
-    <div>
-      <h1 class="page-title">Search</h1>
-      <p class="page-sub">Search across units, prospects, and maintenance tickets.</p>
-    </div>
-    <div class="search-wrap" style="max-width:480px;">
-      ${icon("search", 16)}
-      <input id="global-search-input" class="input" placeholder="Search brand, contact, unit, issue..." value="${esc(q)}" oninput="onGlobalSearch(this.value)" autofocus />
-    </div>
-    <div id="global-search-results">${hasQuery ? globalSearchResultsHtml(results) : `<p class="empty-note">Start typing to search across the whole system.</p>`}</div>
-  </div>`;
-}
-
-function globalSearchResultsHtml(results) {
-  const { units, prospects, maintenance } = results;
-  if (units.length + prospects.length + maintenance.length === 0) {
-    return `<div class="empty-state"><p class="title">No matches found.</p><p class="sub">Try a different unit, name, or keyword.</p></div>`;
-  }
-  return `
-    ${prospects.length > 0 ? `
-    <section class="panel" style="margin-bottom:16px;">
-      <h2 class="section-title">Prospects (${prospects.length})</h2>
-      <div>
-        ${prospects.map((t) => `
-          <button class="pipeline-item" onclick="openTenantDetail('${t.id}')">
-            <div class="pipeline-main" style="min-width:0;">
-              <p>${esc(t.brand || t.concept || "(no brand/concept yet)")}</p>
-              <p class="pipeline-sub">${esc(t.contact)} · ${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</p>
-            </div>
-            ${badgeHtml(t.status)}
-          </button>`).join("")}
-      </div>
-    </section>` : ""}
-    ${units.length > 0 ? `
-    <section class="panel" style="margin-bottom:16px;">
-      <h2 class="section-title">Units (${units.length})</h2>
-      <div>
-        ${units.map((l) => `
-          <button class="pipeline-item" onclick="goToTenantsForListing('${l.id}')">
-            <div class="pipeline-main" style="min-width:0;">
-              <p>${esc(l.property)} — ${esc(l.unit)}</p>
-              <p class="pipeline-sub">${l.floorArea ? esc(l.floorArea) + " sqm" : "No floor area set"}</p>
-            </div>
-            <span class="status-pill ${l.kind}">${esc(l.label)}</span>
-          </button>`).join("")}
-      </div>
-    </section>` : ""}
-    ${maintenance.length > 0 ? `
-    <section class="panel">
-      <h2 class="section-title">Maintenance (${maintenance.length})</h2>
-      <div>
-        ${maintenance.map((m) => `
-          <button class="pipeline-item" onclick="goToMaintenance('${m.id}')">
-            <div class="pipeline-main" style="min-width:0;">
-              <p>${esc(m.issue || "(no description)")}</p>
-              <p class="pipeline-sub">${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</p>
-            </div>
-            ${badgeHtml(m.status, MAINT_STATUS_STYLE)}
-          </button>`).join("")}
-      </div>
-    </section>` : ""}
-  `;
-}
-
-function onGlobalSearch(value) {
-  state.globalSearchQuery = value;
-  const el = document.getElementById("global-search-results");
-  if (el) {
-    const hasQuery = value.trim().length > 0;
-    el.innerHTML = hasQuery ? globalSearchResultsHtml(globalSearchResults(value)) : `<p class="empty-note">Start typing to search across the whole system.</p>`;
-  }
-}
-
 function filteredMaintenance() {
   return state.maintenance
     .filter((m) => (state.maintStatusFilter === "All" ? true : m.status === state.maintStatusFilter))
@@ -1145,7 +1050,6 @@ async function onAuthSubmit(e) {
 const NAV_GROUPS = [
   { label: null, items: [
     { id: "dashboard", label: "Dashboard", icon: "dashboard" },
-    { id: "search", label: "Search", icon: "search" },
   ] },
   { label: "Leasing", items: [
     { id: "tenants", label: "Prospective tenants", icon: "users" },
@@ -1207,7 +1111,6 @@ function appShellHtml() {
 
 function tabContentHtml() {
   if (state.tab === "dashboard") return dashboardHtml();
-  if (state.tab === "search") return searchTabHtml();
   if (state.tab === "tenants") return state.detailTenantId ? tenantDetailHtml() : tenantsTabHtml();
   if (state.tab === "listings") return listingsTabHtml();
   if (state.tab === "followups") return followUpsTabHtml();
