@@ -1823,8 +1823,21 @@ export default function PLUDLeasingTracker() {
 
   if (userLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-50">
-        <Loader2 className="animate-spin text-violet-700" size={28} />
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3.5 bg-slate-900">
+        <div className="flex h-11 w-11 items-center justify-center rounded-md border border-violet-400 font-serif text-lg text-violet-400">
+          P
+        </div>
+        <div className="text-center">
+          <h1 className="font-serif text-base font-semibold text-stone-100">PLUD</h1>
+          <p className="mt-0.5 text-xs text-zinc-400">Leasing Tracker</p>
+        </div>
+        <div className="relative mt-1 h-1 w-44 overflow-hidden rounded-full bg-white/15">
+          <style>{"@keyframes btn-indeterminate{0%{left:-36%;}100%{left:100%;}}"}</style>
+          <div
+            className="absolute inset-y-0 w-1/3 rounded-full bg-violet-400"
+            style={{ animation: "btn-indeterminate 1.1s ease-in-out infinite" }}
+          />
+        </div>
       </div>
     );
   }
