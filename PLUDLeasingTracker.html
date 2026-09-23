@@ -99,6 +99,36 @@
   .occupancy-legend-row .swatch{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
   .occupancy-legend-row .name{flex:1; color:var(--stone-700);}
   .occupancy-legend-row .count{font-weight:600; color:var(--stone-900);}
+
+  /* maintenance workspace (work orders + service contracts) */
+  .ws-columns{display:grid; grid-template-columns:1fr; gap:20px;}
+  @media(min-width:900px){.ws-columns{grid-template-columns:1fr 1fr;}}
+  .ws-panel{background:#fff; border:1px solid var(--stone-200); border-radius:12px; padding:20px;}
+  .ws-panel-title{display:flex; align-items:baseline; gap:8px; margin:0 0 16px;}
+  .ws-panel-title h2{font-family:var(--font-serif); font-size:16px; font-weight:700; margin:0; color:var(--stone-900);}
+  .ws-panel-title .count{font-size:13px; color:var(--stone-400);}
+  .wo-card{border:1px solid var(--stone-200); border-radius:10px; padding:14px 16px; margin-bottom:12px; background:var(--stone-50);}
+  .wo-card:last-child{margin-bottom:0;}
+  .wo-top{display:flex; align-items:flex-start; gap:12px;}
+  .wo-icon{width:34px; height:34px; border-radius:999px; flex-shrink:0; display:flex; align-items:center; justify-content:center;}
+  .wo-body{flex:1; min-width:0;}
+  .wo-title-row{display:flex; align-items:center; gap:8px;}
+  .wo-title-row h3{font-size:14.5px; font-weight:600; color:var(--stone-900); margin:0; flex:1; min-width:0;}
+  .wo-sub{font-size:12.5px; color:var(--stone-500); margin:3px 0 0;}
+  .wo-date{font-size:12px; color:var(--stone-400); margin:8px 0 0;}
+  .wo-bottom{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px;}
+  .wo-status-select{border:1px solid var(--stone-300); border-radius:7px; padding:6px 10px; font-size:12.5px; background:#fff; color:var(--stone-700); cursor:pointer;}
+  .sc-card{border:1px solid var(--stone-200); border-radius:10px; padding:14px 16px; margin-bottom:12px;}
+  .sc-card:last-child{margin-bottom:0;}
+  .sc-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .sc-top h3{font-size:14.5px; font-weight:600; color:var(--stone-900); margin:0;}
+  .sc-sub{font-size:12.5px; color:var(--stone-500); margin:3px 0 0;}
+  .sc-bottom{display:flex; align-items:baseline; justify-content:space-between; margin-top:10px;}
+  .sc-expires{font-size:12px; color:var(--stone-400);}
+  .sc-value{font-size:13.5px; font-weight:700; color:var(--stone-900);}
+  .icon-btn.danger-sm{color:var(--rose-700); background:none; border:none; cursor:pointer; padding:4px; display:flex; align-items:center; border-radius:5px;}
+  .icon-btn.danger-sm:hover{background:var(--rose-50);}
+
   .occupancy-legend-row .pct{color:var(--stone-400); font-size:12px; width:38px; text-align:right;}
 
   /* buttons */
@@ -449,6 +479,12 @@ const SEED_MAINTENANCE = [
   },
 ];
 
+const SEED_CONTRACTS = [
+  { id: "C1", property: "Vine Building", vendorName: "Elevate Systems", contractType: "Lift & vertical transport", expires: "2026-11-03", annualValue: 18600 },
+  { id: "C2", property: "Diaz Property", vendorName: "Brightline Facilities", contractType: "Common area services", expires: "2027-02-28", annualValue: 22800 },
+  { id: "C3", property: "Vine Building", vendorName: "AquaShield", contractType: "HVAC preventive maintenance", expires: "2026-10-31", annualValue: 14500 },
+];
+
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
@@ -572,6 +608,10 @@ const state = {
   optionFormError: "",
   settingsConceptCategory: "",
   listingSearch: "",
+  contracts: [],
+  showNewContract: false,
+  deletingContractId: null,
+  contractFormError: "",
   showSignOutConfirm: false,
   lastSyncedAt: null,
   tenantView: "table",
@@ -688,6 +728,28 @@ function maintStateToRow(m) {
     resolved_date: m.resolvedDate || null, notes: m.notes || "",
   };
 }
+function contractRowToState(r) {
+  return {
+    id: r.id, property: r.property || "", vendorName: r.vendor_name || "",
+    contractType: r.contract_type || "", expires: r.expires || "",
+    annualValue: r.annual_value === null || r.annual_value === undefined ? "" : r.annual_value,
+  };
+}
+function contractStateToRow(c) {
+  return {
+    id: c.id, property: c.property || "", vendor_name: c.vendorName || "",
+    contract_type: c.contractType || "", expires: c.expires || null,
+    annual_value: c.annualValue === "" ? null : Number(c.annualValue),
+  };
+}
+function contractStatusOf(expires) {
+  if (!expires) return { label: "Active", style: "emerald" };
+  const today = new Date().toISOString().slice(0, 10);
+  const daysLeft = Math.round((new Date(expires + "T00:00:00") - new Date(today + "T00:00:00")) / 86400000);
+  if (daysLeft < 0) return { label: "Expired", style: "rose" };
+  if (daysLeft <= 60) return { label: "Expiring", style: "amber" };
+  return { label: "Active", style: "emerald" };
+}
 
 async function init() {
   try {
@@ -702,18 +764,20 @@ async function init() {
 async function loadData() {
   state.loading = true;
   try {
-    const [tenantsRes, listingsRes, usersRes, maintRes, optionsRes] = await Promise.all([
+    const [tenantsRes, listingsRes, usersRes, maintRes, optionsRes, contractsRes] = await Promise.all([
       sb.from("plud_tenants").select("*"),
       sb.from("plud_listings").select("*"),
       sb.from("plud_users").select("id, username, name, role, created_at").order("created_at"),
       sb.from("plud_maintenance").select("*"),
       sb.from("plud_custom_options").select("*").order("created_at"),
+      sb.from("plud_maintenance_contracts").select("*").order("created_at"),
     ]);
     if (tenantsRes.error) throw tenantsRes.error;
     if (listingsRes.error) throw listingsRes.error;
     if (usersRes.error) throw usersRes.error;
     if (maintRes.error) throw maintRes.error;
     if (optionsRes.error) throw optionsRes.error;
+    if (contractsRes.error) throw contractsRes.error;
 
     if (tenantsRes.data.length === 0 && listingsRes.data.length === 0) {
       // First run against an empty database: seed it once.
@@ -731,6 +795,12 @@ async function loadData() {
     } else {
       state.maintenance = maintRes.data.map(maintRowToState);
     }
+    if (contractsRes.data.length === 0) {
+      await sb.from("plud_maintenance_contracts").upsert(SEED_CONTRACTS.map(contractStateToRow));
+      state.contracts = SEED_CONTRACTS;
+    } else {
+      state.contracts = contractsRes.data.map(contractRowToState);
+    }
     state.customCategories = optionsRes.data.filter((o) => o.option_type === "category");
     state.customConcepts = optionsRes.data.filter((o) => o.option_type === "concept");
     state.customStatuses = optionsRes.data.filter((o) => o.option_type === "status");
@@ -742,6 +812,7 @@ async function loadData() {
     state.tenants = SEED_TENANTS;
     state.listings = SEED_LISTINGS;
     state.maintenance = SEED_MAINTENANCE;
+    state.contracts = SEED_CONTRACTS;
     state.users = [];
     state.customCategories = [];
     state.customConcepts = [];
@@ -1174,6 +1245,8 @@ function appShellHtml() {
   ${state.deletingUserId ? confirmDeleteUserDialogHtml() : ""}
   ${(state.showNewMaint || state.editingMaint) ? maintModalHtml() : ""}
   ${state.deletingMaintId ? confirmDeleteMaintDialogHtml() : ""}
+  ${state.showNewContract ? contractModalHtml() : ""}
+  ${state.deletingContractId ? confirmDeleteContractDialogHtml() : ""}
   ${state.showSignOutConfirm ? confirmSignOutDialogHtml() : ""}
   `;
 }
@@ -2721,20 +2794,68 @@ async function deleteCustomOption(id) {
 /* ---------------------------------------------------------------------- */
 function maintenanceTabHtml() {
   return `
-  <div>
-    <div class="toolbar">
-      <select class="input auto" onchange="onMaintStatusFilter(this.value)">
-        <option value="All" ${state.maintStatusFilter === "All" ? "selected" : ""}>All statuses</option>
-        ${MAINT_STATUSES.map((s) => `<option value="${esc(s)}" ${state.maintStatusFilter === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
-      </select>
-      <select class="input auto" onchange="onMaintPropertyFilter(this.value)">
-        <option value="All" ${state.maintPropertyFilter === "All" ? "selected" : ""}>All properties</option>
-        ${PROPERTIES.map((p) => `<option value="${esc(p)}" ${state.maintPropertyFilter === p ? "selected" : ""}>${esc(p)}</option>`).join("")}
-      </select>
-      <div style="flex:1;"></div>
-      <button class="btn btn-primary" onclick="openNewMaint()">${icon("plus", 16)} New request</button>
+  <div class="stack">
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <div>
+        <p style="font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--stone-400);margin:0 0 2px;">WORKSPACE</p>
+        <h1 class="page-title">Maintenance</h1>
+        <p class="page-sub">Coordinate service contracts and keep work orders moving.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn btn-outline" onclick="openNewContract()">${icon("report", 15)} Add contract</button>
+        <button class="btn btn-primary" onclick="openNewMaint()">${icon("plus", 16)} New work order</button>
+      </div>
     </div>
-    <div id="maint-results">${maintResultsHtml()}</div>
+
+    <div class="ws-columns">
+      <div class="ws-panel">
+        <div class="ws-panel-title"><h2>Work orders</h2><span class="count">${state.maintenance.length} total</span></div>
+        ${state.maintenance.length === 0 ? `<p class="empty-note">No work orders yet.</p>` : state.maintenance.map((m) => `
+          <div class="wo-card">
+            <div class="wo-top">
+              <div class="wo-icon" style="background:var(--${(MAINT_PRIORITY_STYLE[m.priority] || "slate").replace("slate", "stone")}-100);color:var(--${(MAINT_PRIORITY_STYLE[m.priority] || "slate").replace("slate", "stone")}-700);">${icon("wrench", 16)}</div>
+              <div class="wo-body">
+                <div class="wo-title-row">
+                  <h3><button class="cell-link" onclick="openMaintDetail('${m.id}')" style="color:inherit;font-weight:inherit;">${esc(m.issue || "(no description)")}</button></h3>
+                  ${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}
+                  <button class="icon-btn danger-sm" onclick="askDeleteMaint('${m.id}')" aria-label="Delete">${icon("trash", 14)}</button>
+                </div>
+                <p class="wo-sub">${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}${m.assignedTo ? " · " + esc(m.assignedTo) : ""}</p>
+                <div class="wo-bottom">
+                  <span class="wo-date">${m.reportedDate ? "Reported " + fmtDate(m.reportedDate) : "No date set"}</span>
+                  <select class="wo-status-select" onchange="changeMaintStatus('${m.id}', this.value)">
+                    ${MAINT_STATUSES.map((s) => `<option value="${esc(s)}" ${m.status === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>`).join("")}
+      </div>
+
+      <div class="ws-panel">
+        <div class="ws-panel-title"><h2>Service contracts</h2><span class="count">${state.contracts.length} total</span></div>
+        ${state.contracts.length === 0 ? `<p class="empty-note">No service contracts yet.</p>` : state.contracts.map((c) => {
+          const cs = contractStatusOf(c.expires);
+          return `
+          <div class="sc-card">
+            <div class="sc-top">
+              <div>
+                <h3>${esc(c.vendorName)}</h3>
+                <p class="sc-sub">${esc(c.property)}${c.contractType ? " · " + esc(c.contractType) : ""}</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                <span class="badge st-${cs.style}"><span class="dot d-${cs.style}"></span>${cs.label}</span>
+                <button class="icon-btn danger-sm" onclick="askDeleteContract('${c.id}')" aria-label="Delete">${icon("trash", 14)}</button>
+              </div>
+            </div>
+            <div class="sc-bottom">
+              <span class="sc-expires">${c.expires ? "Expires " + fmtDate(c.expires) : "No expiry set"}</span>
+              <span class="sc-value">${c.annualValue !== "" && c.annualValue !== null ? fmtMoney(c.annualValue) + " / yr" : "—"}</span>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -2960,6 +3081,106 @@ function confirmDeleteMaintDialogHtml() {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Service contracts                                                       */
+/* ---------------------------------------------------------------------- */
+function openNewContract() { state.showNewContract = true; state.contractFormError = ""; render(); }
+function closeContractModal() { state.showNewContract = false; state.contractFormError = ""; render(); }
+
+function saveContract() {
+  const property = document.getElementById("c-property").value;
+  const vendorName = document.getElementById("c-vendorName").value.trim();
+  const contractType = document.getElementById("c-contractType").value.trim();
+  const expires = document.getElementById("c-expires").value;
+  const annualValue = document.getElementById("c-annualValue").value;
+
+  if (!vendorName) { state.contractFormError = "Vendor name is required."; document.getElementById("c-error").innerHTML = `<div class="form-error">${icon("alert", 16)} Vendor name is required.</div>`; return; }
+
+  const record = { id: uid("C"), property, vendorName, contractType, expires, annualValue: annualValue === "" ? "" : Number(annualValue) };
+  state.contracts = [record, ...state.contracts];
+  state.showNewContract = false;
+  state.contractFormError = "";
+  render();
+
+  sb.from("plud_maintenance_contracts").upsert(contractStateToRow(record)).then(({ error }) => {
+    if (error) {
+      console.error("Supabase save (contract) failed:", error);
+      state.saveError = "Changes aren't saving to the database right now.";
+    } else {
+      state.saveError = "";
+    }
+    const el = document.getElementById("save-banner");
+    if (el) el.outerHTML = bannerHtml();
+  });
+}
+
+function askDeleteContract(id) { state.deletingContractId = id; render(); }
+function cancelDeleteContract() { state.deletingContractId = null; render(); }
+function confirmDeleteContract() {
+  const id = state.deletingContractId;
+  state.contracts = state.contracts.filter((c) => c.id !== id);
+  state.deletingContractId = null;
+  render();
+
+  sb.from("plud_maintenance_contracts").delete().eq("id", id).then(({ error }) => {
+    if (error) console.error("Supabase delete (contract) failed:", error);
+  });
+}
+
+function contractModalHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add service contract</h2>
+        <button class="icon-btn" onclick="closeContractModal()" aria-label="Close">${icon("x", 18)}</button>
+      </div>
+      <div class="modal-body">
+        <div id="c-error">${state.contractFormError ? `<div class="form-error">${icon("alert", 16)} ${esc(state.contractFormError)}</div>` : ""}</div>
+        <label><span class="field-label">Vendor name</span>
+          <input id="c-vendorName" class="input" placeholder="e.g. Elevate Systems" />
+        </label>
+        <div class="grid-2">
+          <label><span class="field-label">Property</span>
+            <select id="c-property" class="input">
+              ${PROPERTIES.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join("")}
+            </select>
+          </label>
+          <label><span class="field-label">Service type</span>
+            <input id="c-contractType" class="input" placeholder="e.g. HVAC preventive maintenance" />
+          </label>
+        </div>
+        <div class="grid-2">
+          <label><span class="field-label">Expires</span>
+            <input id="c-expires" type="date" class="input" />
+          </label>
+          <label><span class="field-label">Annual value (₱)</span>
+            <input id="c-annualValue" type="number" min="0" step="0.01" class="input" placeholder="0.00" />
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeContractModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveContract()">Add contract</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function confirmDeleteContractDialogHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal confirm">
+      <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Delete this contract?</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">This removes the service contract permanently. This can't be undone.</p>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn btn-outline" onclick="cancelDeleteContract()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteContract()">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------- */
 /* Maintenance detail page                                                 */
 /* ---------------------------------------------------------------------- */
 async function openMaintDetail(id) {
@@ -3006,8 +3227,8 @@ function submitMaintComment() {
   document.getElementById("new-maint-comment").value = "";
 }
 
-function changeMaintStatusFromDetail(newStatus) {
-  const m = state.maintenance.find((x) => x.id === state.detailMaintId);
+function changeMaintStatus(id, newStatus) {
+  const m = state.maintenance.find((x) => x.id === id);
   if (!m || m.status === newStatus) return;
   const prevStatus = m.status;
   const updated = { ...m, status: newStatus, resolvedDate: newStatus === "Resolved" && !m.resolvedDate ? new Date().toISOString().slice(0, 10) : m.resolvedDate };
@@ -3017,6 +3238,9 @@ function changeMaintStatusFromDetail(newStatus) {
   sb.from("plud_maintenance").upsert(maintStateToRow(updated)).then(({ error }) => {
     if (error) console.error("Status update failed:", error);
   });
+}
+function changeMaintStatusFromDetail(newStatus) {
+  changeMaintStatus(state.detailMaintId, newStatus);
 }
 
 function saveMaintAssignedTo() {

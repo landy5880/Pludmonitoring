@@ -226,6 +226,34 @@ function maintStateToRow(m) {
     resolved_date: m.resolvedDate || null, notes: m.notes || "",
   };
 }
+function contractRowToState(r) {
+  return {
+    id: r.id, property: r.property || "", vendorName: r.vendor_name || "",
+    contractType: r.contract_type || "", expires: r.expires || "",
+    annualValue: r.annual_value === null || r.annual_value === undefined ? "" : r.annual_value,
+  };
+}
+function contractStateToRow(c) {
+  return {
+    id: c.id, property: c.property || "", vendor_name: c.vendorName || "",
+    contract_type: c.contractType || "", expires: c.expires || null,
+    annual_value: c.annualValue === "" ? null : Number(c.annualValue),
+  };
+}
+function contractStatusOf(expires) {
+  if (!expires) return { label: "Active", style: "emerald" };
+  const today = new Date().toISOString().slice(0, 10);
+  const daysLeft = Math.round((new Date(expires + "T00:00:00") - new Date(today + "T00:00:00")) / 86400000);
+  if (daysLeft < 0) return { label: "Expired", style: "rose" };
+  if (daysLeft <= 60) return { label: "Expiring", style: "amber" };
+  return { label: "Active", style: "emerald" };
+}
+
+const SEED_CONTRACTS = [
+  { id: "C1", property: "Vine Building", vendorName: "Elevate Systems", contractType: "Lift & vertical transport", expires: "2026-11-03", annualValue: 18600 },
+  { id: "C2", property: "Diaz Property", vendorName: "Brightline Facilities", contractType: "Common area services", expires: "2027-02-28", annualValue: 22800 },
+  { id: "C3", property: "Vine Building", vendorName: "AquaShield", contractType: "HVAC preventive maintenance", expires: "2026-10-31", annualValue: 14500 },
+];
 
 // Session storage: uses window.storage when available (Claude artifact
 // preview), falls back to plain localStorage otherwise, so sign-in
@@ -982,6 +1010,67 @@ function ConceptOptionsPanel({ categories, customConcepts, selectedCategory, onS
   );
 }
 
+function ContractModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ property: PROPERTIES[0] || "", vendorName: "", contractType: "", expires: "", annualValue: "" });
+  const [error, setError] = useState("");
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const handleSave = () => {
+    if (!form.vendorName.trim()) { setError("Vendor name is required."); return; }
+    onSave({ ...form, id: uid("C"), annualValue: form.annualValue === "" ? "" : Number(form.annualValue) });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+          <h2 className="font-serif text-base font-semibold text-stone-900">Add service contract</h2>
+          <button onClick={onClose} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-600" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+
+          <Field label="Vendor name">
+            <input className={inputCls} placeholder="e.g. Elevate Systems" value={form.vendorName} onChange={(e) => set({ vendorName: e.target.value })} />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Property">
+              <select className={inputCls} value={form.property} onChange={(e) => set({ property: e.target.value })}>
+                {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </Field>
+            <Field label="Service type">
+              <input className={inputCls} placeholder="e.g. HVAC preventive maintenance" value={form.contractType} onChange={(e) => set({ contractType: e.target.value })} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Expires">
+              <input type="date" className={inputCls} value={form.expires} onChange={(e) => set({ expires: e.target.value })} />
+            </Field>
+            <Field label="Annual value (₱)">
+              <input type="number" min="0" step="0.01" className={inputCls} placeholder="0.00" value={form.annualValue} onChange={(e) => set({ annualValue: e.target.value })} />
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-stone-200 px-6 py-4">
+          <button onClick={onClose} className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Cancel</button>
+          <button onClick={handleSave} className="rounded-xl bg-emerald-900 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-950">Add contract</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UserModal({ onClose, onSave }) {
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
@@ -1162,6 +1251,9 @@ export default function PLUDLeasingTracker() {
   const [settingsConceptCategory, setSettingsConceptCategory] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [followUpFilter, setFollowUpFilter] = useState("All");
+  const [contracts, setContracts] = useState([]);
+  const [showNewContract, setShowNewContract] = useState(false);
+  const [deletingContractId, setDeletingContractId] = useState(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
@@ -1256,12 +1348,13 @@ export default function PLUDLeasingTracker() {
     let cancelled = false;
     (async () => {
       try {
-        const [tenantRows, listingRows, userRows, maintRows, optionRows] = await Promise.all([
+        const [tenantRows, listingRows, userRows, maintRows, optionRows, contractRows] = await Promise.all([
           sbSelect("plud_tenants"),
           sbSelect("plud_listings"),
           sbRequest("plud_users?select=id,username,name,role,created_at&order=created_at"),
           sbSelect("plud_maintenance"),
           sbRequest("plud_custom_options?select=*&order=created_at"),
+          sbSelect("plud_maintenance_contracts"),
         ]);
         if (cancelled) return;
         if (tenantRows.length === 0 && listingRows.length === 0) {
@@ -1281,6 +1374,12 @@ export default function PLUDLeasingTracker() {
         } else {
           setMaintenance(maintRows.map(maintRowToState));
         }
+        if (contractRows.length === 0) {
+          await sbUpsert("plud_maintenance_contracts", SEED_CONTRACTS.map(contractStateToRow));
+          setContracts(SEED_CONTRACTS);
+        } else {
+          setContracts(contractRows.map(contractRowToState));
+        }
         setCustomCategories(optionRows.filter((o) => o.option_type === "category"));
         setCustomConcepts(optionRows.filter((o) => o.option_type === "concept"));
         setCustomStatuses(optionRows.filter((o) => o.option_type === "status"));
@@ -1292,6 +1391,7 @@ export default function PLUDLeasingTracker() {
         setTenants(SEED_TENANTS);
         setListings(SEED_LISTINGS);
         setMaintenance(SEED_MAINTENANCE);
+        setContracts(SEED_CONTRACTS);
         setUsers([]);
         setCustomCategories([]);
         setCustomConcepts([]);
@@ -1670,6 +1770,22 @@ export default function PLUDLeasingTracker() {
     sbDelete("plud_maintenance", id)
       .then(() => setSaveError(""))
       .catch((e) => { console.error("Supabase delete (maintenance) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+  }, []);
+
+  const saveContract = useCallback((c) => {
+    setContracts((prev) => [c, ...prev]);
+    setShowNewContract(false);
+    sbUpsert("plud_maintenance_contracts", [contractStateToRow(c)])
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase save (contract) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+  }, []);
+
+  const deleteContract = useCallback((id) => {
+    setContracts((prev) => prev.filter((c) => c.id !== id));
+    setDeletingContractId(null);
+    sbDelete("plud_maintenance_contracts", id)
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase delete (contract) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
   const stats = useMemo(() => {
@@ -2524,76 +2640,112 @@ export default function PLUDLeasingTracker() {
         )}
 
         {tab === "maintenance" && !detailMaintId && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <select className={`${inputCls} w-auto`} value={maintStatusFilter} onChange={(e) => setMaintStatusFilter(e.target.value)}>
-                <option value="All">All statuses</option>
-                {MAINT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select className={`${inputCls} w-auto`} value={maintPropertyFilter} onChange={(e) => setMaintPropertyFilter(e.target.value)}>
-                <option value="All">All properties</option>
-                {PROPERTIES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <div className="flex-1" />
-              <button
-                onClick={() => setShowNewMaint(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-950"
-              >
-                <Plus size={16} /> New request
-              </button>
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-stone-400">WORKSPACE</p>
+                <h1 className="font-serif text-2xl font-bold text-stone-900">Maintenance</h1>
+                <p className="mt-0.5 text-sm text-stone-500">Coordinate service contracts and keep work orders moving.</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={() => setShowNewContract(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  <FileText size={15} /> Add contract
+                </button>
+                <button
+                  onClick={() => setShowNewMaint(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-emerald-950"
+                >
+                  <Plus size={16} /> New work order
+                </button>
+              </div>
             </div>
 
-            {filteredMaintenance.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-14 text-center">
-                <p className="text-sm font-medium text-stone-700">No maintenance requests match these filters.</p>
-                <p className="mt-1 text-xs text-stone-500">Try clearing filters, or log a new request.</p>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="border-b border-stone-200 text-xs font-semibold text-stone-600">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Reported</th>
-                        <th className="px-4 py-3 font-medium">Property / unit</th>
-                        <th className="px-4 py-3 font-medium">Issue</th>
-                        <th className="px-4 py-3 font-medium">Priority</th>
-                        <th className="px-4 py-3 font-medium">Assigned to</th>
-                        <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {filteredMaintenance.map((m) => (
-                        <tr key={m.id} className="hover:bg-stone-50">
-                          <td className="whitespace-nowrap px-4 py-3 text-stone-600">{fmtDate(m.reportedDate)}</td>
-                          <td className="px-4 py-3 text-stone-600">{m.property}{m.unit ? ` · ${m.unit}` : ""}</td>
-                          <td className="px-4 py-3">
-                            <button onClick={() => openMaintDetail(m.id)} className="text-left font-medium text-stone-900 hover:text-emerald-900 hover:underline">
-                              {m.issue || "(no description)"}
-                            </button>
-                            {m.resolvedDate && <p className="text-xs text-stone-500">Resolved {fmtDate(m.resolvedDate)}</p>}
-                          </td>
-                          <td className="px-4 py-3"><Badge status={m.priority} styleMap={MAINT_PRIORITY_STYLE} /></td>
-                          <td className="px-4 py-3 text-stone-600">{m.assignedTo || "—"}</td>
-                          <td className="px-4 py-3"><Badge status={m.status} styleMap={MAINT_STATUS_STYLE} /></td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-1">
-                              <button onClick={() => setEditingMaint(m)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-emerald-900" aria-label="Edit">
-                                <Pencil size={15} />
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <section className="rounded-xl border border-stone-200 bg-white p-5">
+                <div className="mb-4 flex items-baseline gap-2">
+                  <h2 className="font-serif text-base font-bold text-stone-900">Work orders</h2>
+                  <span className="text-sm text-stone-400">{maintenance.length} total</span>
+                </div>
+                {maintenance.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-stone-500">No work orders yet.</p>
+                ) : (
+                  maintenance.map((m) => {
+                    const ps = MAINT_PRIORITY_STYLE[m.priority] || MAINT_PRIORITY_STYLE.Low;
+                    return (
+                      <div key={m.id} className="mb-3 rounded-lg border border-stone-200 bg-stone-50 p-4 last:mb-0">
+                        <div className="flex items-start gap-3">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${ps.bg} ${ps.text}`}>
+                            <Wrench size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => openMaintDetail(m.id)} className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-stone-900 hover:underline">
+                                {m.issue || "(no description)"}
                               </button>
-                              <button onClick={() => setDeletingMaintId(m.id)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
-                                <Trash2 size={15} />
+                              <Badge status={m.priority} styleMap={MAINT_PRIORITY_STYLE} />
+                              <button onClick={() => setDeletingMaintId(m.id)} className="shrink-0 rounded-md p-1 text-rose-700 hover:bg-rose-50" aria-label="Delete">
+                                <Trash2 size={14} />
                               </button>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            <p className="mt-0.5 truncate text-xs text-stone-500">
+                              {m.property}{m.unit ? ` · ${m.unit}` : ""}{m.assignedTo ? ` · ${m.assignedTo}` : ""}
+                            </p>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="text-xs text-stone-400">{m.reportedDate ? `Reported ${fmtDate(m.reportedDate)}` : "No date set"}</span>
+                              <select
+                                value={m.status}
+                                onChange={(e) => changeMaintStatusFromDetail(m.id, e.target.value)}
+                                className="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-700"
+                              >
+                                {MAINT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </section>
+
+              <section className="rounded-xl border border-stone-200 bg-white p-5">
+                <div className="mb-4 flex items-baseline gap-2">
+                  <h2 className="font-serif text-base font-bold text-stone-900">Service contracts</h2>
+                  <span className="text-sm text-stone-400">{contracts.length} total</span>
                 </div>
-              </div>
-            )}
+                {contracts.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-stone-500">No service contracts yet.</p>
+                ) : (
+                  contracts.map((c) => {
+                    const cs = contractStatusOf(c.expires);
+                    const csStyle = { Active: "bg-emerald-100 text-emerald-800", Expiring: "bg-amber-100 text-amber-800", Expired: "bg-rose-100 text-rose-800" }[cs.label];
+                    return (
+                      <div key={c.id} className="mb-3 rounded-lg border border-stone-200 p-4 last:mb-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-sm font-semibold text-stone-900">{c.vendorName}</h3>
+                            <p className="mt-0.5 truncate text-xs text-stone-500">{c.property}{c.contractType ? ` · ${c.contractType}` : ""}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${csStyle}`}>{cs.label}</span>
+                            <button onClick={() => setDeletingContractId(c.id)} className="rounded-md p-1 text-rose-700 hover:bg-rose-50" aria-label="Delete">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-between">
+                          <span className="text-xs text-stone-400">{c.expires ? `Expires ${fmtDate(c.expires)}` : "No expiry set"}</span>
+                          <span className="text-sm font-bold text-stone-900">{c.annualValue !== "" && c.annualValue !== null ? `${fmtMoney(c.annualValue)} / yr` : "—"}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </section>
+            </div>
           </div>
         )}
 
@@ -3044,6 +3196,22 @@ export default function PLUDLeasingTracker() {
           body="This removes the maintenance record permanently. This can't be undone."
           onCancel={() => setDeletingMaintId(null)}
           onConfirm={() => deleteMaint(deletingMaintId)}
+        />
+      )}
+
+      {showNewContract && (
+        <ContractModal
+          onClose={() => setShowNewContract(false)}
+          onSave={saveContract}
+        />
+      )}
+
+      {deletingContractId && (
+        <ConfirmDialog
+          title="Delete this contract?"
+          body="This removes the service contract permanently. This can't be undone."
+          onCancel={() => setDeletingContractId(null)}
+          onConfirm={() => deleteContract(deletingContractId)}
         />
       )}
 
