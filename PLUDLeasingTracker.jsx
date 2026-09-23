@@ -1160,6 +1160,7 @@ export default function PLUDLeasingTracker() {
   const [customStatuses, setCustomStatuses] = useState([]);
   const [settingsConceptCategory, setSettingsConceptCategory] = useState("");
   const [listingSearch, setListingSearch] = useState("");
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -1902,7 +1903,7 @@ export default function PLUDLeasingTracker() {
             {user.role ? <p className="truncate text-xs text-zinc-400">{user.role}</p> : null}
           </div>
           <button
-            onClick={handleLogout}
+            onClick={() => setShowSignOutConfirm(true)}
             className="flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800"
           >
             <LogOut size={15} /> Sign out
@@ -2845,6 +2846,16 @@ export default function PLUDLeasingTracker() {
           body="This removes the maintenance record permanently. This can't be undone."
           onCancel={() => setDeletingMaintId(null)}
           onConfirm={() => deleteMaint(deletingMaintId)}
+        />
+      )}
+
+      {showSignOutConfirm && (
+        <ConfirmDialog
+          title="Sign out?"
+          body="You'll need to sign in again to access the tracker."
+          confirmLabel="Sign out"
+          onCancel={() => setShowSignOutConfirm(false)}
+          onConfirm={() => { setShowSignOutConfirm(false); handleLogout(); }}
         />
       )}
     </div>

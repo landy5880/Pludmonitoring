@@ -543,6 +543,7 @@ const state = {
   optionFormError: "",
   settingsConceptCategory: "",
   listingSearch: "",
+  showSignOutConfirm: false,
   lastSyncedAt: null,
   tenantView: "table",
   draggingTenantId: null,
@@ -747,8 +748,25 @@ async function loginWithPassword(name, password) {
 
 async function logout() {
   state.user = null;
+  state.showSignOutConfirm = false;
   try { await sessionStore.delete(USER_STORAGE_KEY); } catch (e) {}
   render();
+}
+
+function askSignOut() { state.showSignOutConfirm = true; render(); }
+function cancelSignOut() { state.showSignOutConfirm = false; render(); }
+function confirmSignOutDialogHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal confirm">
+      <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Sign out?</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">You'll need to sign in again to access the tracker.</p>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn btn-outline" onclick="cancelSignOut()">Cancel</button>
+        <button class="btn btn-danger" onclick="logout()">Sign out</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1089,7 +1107,7 @@ function appShellHtml() {
       <div class="sidebar-footer">
         <p class="sidebar-user-name">${esc(state.user.name)}</p>
         ${state.user.role ? `<p class="sidebar-user-role">${esc(state.user.role)}</p>` : `<div style="margin-bottom:10px;"></div>`}
-        <button class="btn btn-outline btn-block" onclick="logout()">${icon("logout", 15)} <span>Sign out</span></button>
+        <button class="btn btn-outline btn-block" onclick="askSignOut()">${icon("logout", 15)} <span>Sign out</span></button>
       </div>
     </aside>
     <div class="main-col">
@@ -1106,6 +1124,7 @@ function appShellHtml() {
   ${state.deletingUserId ? confirmDeleteUserDialogHtml() : ""}
   ${(state.showNewMaint || state.editingMaint) ? maintModalHtml() : ""}
   ${state.deletingMaintId ? confirmDeleteMaintDialogHtml() : ""}
+  ${state.showSignOutConfirm ? confirmSignOutDialogHtml() : ""}
   `;
 }
 
