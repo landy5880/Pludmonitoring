@@ -88,7 +88,27 @@
     .funnel-pct{grid-column:auto;}
     .funnel-conv{grid-column:auto;}
   }
+  .occ-basis-strip{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px;}
+  .occ-basis-item{border:1px solid var(--stone-200); border-radius:8px; padding:12px 14px; background:var(--stone-50);}
+  .occ-basis-label{display:block; font-size:11px; color:var(--stone-500); font-weight:600;}
+  .occ-basis-value{display:block; font-family:var(--font-serif); font-size:22px; font-weight:700; color:var(--stone-900); margin-top:2px;}
+  .occ-basis-sub{display:block; font-size:11px; color:var(--stone-400); margin-top:2px;}
   .occupancy-donut-wrap{display:flex; flex-wrap:wrap; align-items:center; gap:28px;}
+  .ops-flag-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .ops-flag{border:1px solid var(--stone-200); border-radius:8px; padding:14px; text-align:left; cursor:pointer; background:#fff;}
+  .ops-flag-value{display:block; font-family:var(--font-serif); font-size:24px; font-weight:700;}
+  .ops-flag-label{display:block; font-size:12px; color:var(--stone-500); margin-top:2px;}
+  .ops-flag-emerald{border-top:3px solid var(--emerald-700);} .ops-flag-emerald .ops-flag-value{color:var(--emerald-700);}
+  .ops-flag-amber{border-top:3px solid var(--amber-500); background:var(--amber-50);} .ops-flag-amber .ops-flag-value{color:var(--amber-800);}
+  .ops-flag-neutral{border-top:3px solid var(--stone-300);} .ops-flag-neutral .ops-flag-value{color:var(--stone-700);}
+  .pagination-bar{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:14px 4px 4px; border-top:1px solid var(--stone-200); margin-top:8px;}
+  .pagination-size{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--stone-600);}
+  .pagination-size select{border:1px solid var(--stone-300); border-radius:6px; padding:4px 6px; font-size:12.5px; background:#fff; color:var(--stone-700);}
+  .pagination-info{font-size:12.5px; color:var(--stone-500);}
+  .pagination-nav{display:flex; align-items:center; gap:8px;}
+  .pagination-nav .btn-xs{padding:4px 9px;}
+  .pagination-nav .btn-xs:disabled{opacity:.4; cursor:default;}
+  .pagination-page{font-size:12.5px; color:var(--stone-600); white-space:nowrap;}
   .occupancy-donut{width:168px; height:168px; border-radius:999px; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative;}
   .occupancy-donut-hole{width:112px; height:112px; border-radius:999px; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;}
   .occupancy-donut-hole .total{font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--stone-900); line-height:1;}
@@ -397,6 +417,10 @@ const CATEGORY_CONCEPTS = {
 const CATEGORIES = Object.keys(CATEGORY_CONCEPTS);
 
 const STATUSES = ["Inquired", "Pending Requirements", "Under Evaluation", "Awarded/ Leased", "Lost/ Inactive"];
+const PIPELINE_PROGRESS_PCT = { "Inquired": 25, "Pending Requirements": 50, "Under Evaluation": 75, "Awarded/ Leased": 100, "Lost/ Inactive": 0 };
+function pipelineProgressPct(status) {
+  return status in PIPELINE_PROGRESS_PCT ? PIPELINE_PROGRESS_PCT[status] : 25;
+}
 
 const STATUS_STYLE = {
   "Inquired": "slate",
@@ -584,6 +608,12 @@ const state = {
   showNewListing: false,
   listingFormError: "",
   tenantSearch: "",
+  tenantPage: 1,
+  tenantPageSize: 20,
+  listingPage: 1,
+  listingPageSize: 20,
+  maintPage: 1,
+  maintPageSize: 20,
   tenantStatusFilter: "All",
   tenantPropertyFilter: "All",
   formError: "",
@@ -611,6 +641,7 @@ const state = {
   contracts: [],
   showNewContract: false,
   deletingContractId: null,
+  deletingListingId: null,
   contractFormError: "",
   showSignOutConfirm: false,
   lastSyncedAt: null,
@@ -892,6 +923,9 @@ function computeStats() {
   const occupied = lc.filter((l) => l.kind === "occupied").length;
   const activeInquiryUnits = lc.filter((l) => l.kind === "active").length;
   const occupancyRate = totalUnits ? occupied / totalUnits : 0;
+  const totalSqm = lc.reduce((sum, l) => sum + (Number(l.floorArea) || 0), 0);
+  const occupiedSqm = lc.filter((l) => l.kind === "occupied").reduce((sum, l) => sum + (Number(l.floorArea) || 0), 0);
+  const occupancyRateBySqm = totalSqm ? occupiedSqm / totalSqm : 0;
   const totalProperties = new Set(lc.map((l) => l.property)).size;
 
   const byStage = allStatuses().map((s) => ({ stage: s, count: tenants.filter((t) => t.status === s).length }));
@@ -969,6 +1003,11 @@ function computeStats() {
       }, 0) / resolvedWithDates.length
     : null;
 
+  const expiringContracts = (state.contracts || [])
+    .map((c) => ({ ...c, contractStatus: contractStatusOf(c.expires) }))
+    .filter((c) => c.contractStatus.label === "Expiring" || c.contractStatus.label === "Expired")
+    .sort((a, b) => (a.expires || "").localeCompare(b.expires || ""));
+
   const maintNeedsAttention = maint
     .filter((m) => m.status === "Open" || m.status === "In Progress")
     .map((m) => {
@@ -985,9 +1024,9 @@ function computeStats() {
 
   return {
     totalInquiries, awarded, lost, active, conversionRate, underEvaluation, totalProperties, overdueFollowUps, dueTodayFollowUps, upcomingFollowUpsCount,
-    totalUnits, available, occupied, activeInquiryUnits, occupancyRate,
+    totalUnits, available, occupied, activeInquiryUnits, occupancyRate, totalSqm, occupiedSqm, occupancyRateBySqm,
     byStage, pipelineFunnel, byProperty, pipeline, needsFollowUp, upcoming: upcoming.slice(0, 6),
-    maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention,
+    maintTotal: maint.length, maintOpen, maintInProgress, maintUrgent, maintHigh, resolvedThisMonth, avgResolutionDays, maintNeedsAttention, expiringContracts,
   };
 }
 
@@ -1090,6 +1129,50 @@ function filteredMaintenance() {
 /* ---------------------------------------------------------------------- */
 /* Badge / small components                                               */
 /* ---------------------------------------------------------------------- */
+function paginationBarHtml(prefix, page, pageSize, total) {
+  if (total === 0) return "";
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const clampedPage = Math.min(Math.max(1, page), totalPages);
+  const start = (clampedPage - 1) * pageSize + 1;
+  const end = Math.min(total, clampedPage * pageSize);
+  return `
+  <div class="pagination-bar">
+    <div class="pagination-size">
+      <span>Show</span>
+      <select onchange="onPageSizeChange('${prefix}', this.value)">
+        ${[20, 30, 40, 100].map((n) => `<option value="${n}" ${pageSize === n ? "selected" : ""}>${n}</option>`).join("")}
+      </select>
+      <span>per page</span>
+    </div>
+    <div class="pagination-info">${start}–${end} of ${total}</div>
+    <div class="pagination-nav">
+      <button class="btn-xs" ${clampedPage <= 1 ? "disabled" : ""} onclick="onPageChange('${prefix}', ${clampedPage - 1})">‹</button>
+      <span class="pagination-page">${clampedPage} / ${totalPages}</span>
+      <button class="btn-xs" ${clampedPage >= totalPages ? "disabled" : ""} onclick="onPageChange('${prefix}', ${clampedPage + 1})">›</button>
+    </div>
+  </div>`;
+}
+function onPageSizeChange(prefix, value) {
+  state[`${prefix}PageSize`] = Number(value);
+  state[`${prefix}Page`] = 1;
+  refreshListRender(prefix);
+}
+function onPageChange(prefix, page) {
+  state[`${prefix}Page`] = page;
+  refreshListRender(prefix);
+}
+function refreshListRender(prefix) {
+  if (prefix === "tenant") {
+    const el = document.getElementById("tenant-results");
+    if (el) el.innerHTML = tenantResultsHtml();
+  } else if (prefix === "listing") {
+    const el = document.getElementById("listing-results");
+    if (el) el.innerHTML = listingResultsHtml();
+  } else if (prefix === "maint") {
+    render();
+  }
+}
+
 function badgeHtml(status, styleMap) {
   const cls = (styleMap || STATUS_STYLE)[status] || "slate";
   return `<span class="badge st-${cls}"><span class="dot d-${cls}"></span>${esc(status)}</span>`;
@@ -1247,6 +1330,7 @@ function appShellHtml() {
   ${state.deletingMaintId ? confirmDeleteMaintDialogHtml() : ""}
   ${state.showNewContract ? contractModalHtml() : ""}
   ${state.deletingContractId ? confirmDeleteContractDialogHtml() : ""}
+  ${state.deletingListingId ? confirmDeleteListingDialogHtml() : ""}
   ${state.showSignOutConfirm ? confirmSignOutDialogHtml() : ""}
   `;
 }
@@ -1359,6 +1443,10 @@ function dashboardHtml() {
         const activePct = Math.max(0, Math.min(100 - occPct, (s.activeInquiryUnits / s.totalUnits) * 100));
         const availPct = Math.max(0, 100 - occPct - activePct);
         return `
+        <div class="occ-basis-strip">
+          <div class="occ-basis-item"><span class="occ-basis-label">By unit count</span><span class="occ-basis-value">${Math.round(s.occupancyRate * 100)}%</span><span class="occ-basis-sub">${s.occupied} of ${s.totalUnits} units</span></div>
+          <div class="occ-basis-item"><span class="occ-basis-label">By floor area (sqm)</span><span class="occ-basis-value">${s.totalSqm ? Math.round(s.occupancyRateBySqm * 100) + "%" : "—"}</span><span class="occ-basis-sub">${s.totalSqm ? Math.round(s.occupiedSqm).toLocaleString() + " of " + Math.round(s.totalSqm).toLocaleString() + " sqm" : "No floor areas set"}</span></div>
+        </div>
         <div class="occupancy-donut-wrap">
           <div class="occupancy-donut" style="background:conic-gradient(var(--emerald-700) 0% ${occPct}%, var(--blue-500) ${occPct}% ${occPct + activePct}%, var(--stone-300) ${occPct + activePct}% 100%);" title="${s.occupied} occupied, ${s.activeInquiryUnits} active inquiry, ${s.available} available">
             <div class="occupancy-donut-hole">
@@ -1444,6 +1532,31 @@ function dashboardHtml() {
     </section>
 
     <section class="panel">
+      <h2 class="section-title">Active leases &amp; expiring contracts</h2>
+      <div class="ops-flag-row">
+        <button class="ops-flag ops-flag-emerald" onclick="goToTenantsFiltered('Awarded/ Leased')">
+          <span class="ops-flag-value">${s.awarded}</span>
+          <span class="ops-flag-label">Active leases</span>
+        </button>
+        <button class="ops-flag ${s.expiringContracts.length > 0 ? "ops-flag-amber" : "ops-flag-neutral"}" onclick="goToMaintenanceTab()">
+          <span class="ops-flag-value">${s.expiringContracts.length}</span>
+          <span class="ops-flag-label">Contracts expiring/expired</span>
+        </button>
+      </div>
+      ${s.expiringContracts.length === 0 ? `<p class="empty-note" style="margin-top:12px;">No service contracts expiring soon.</p>` : `
+        <div style="margin-top:12px;">
+          ${s.expiringContracts.map((c) => `
+            <button class="pipeline-item" onclick="goToMaintenanceTab()">
+              <div class="pipeline-main" style="min-width:0;">
+                <p>${esc(c.vendorName)}</p>
+                <p class="pipeline-sub">${esc(c.property)}${c.contractType ? " · " + esc(c.contractType) : ""} · ${c.expires ? "Expires " + fmtDate(c.expires) : "No expiry set"}</p>
+              </div>
+              <span class="badge st-${c.contractStatus.style}"><span class="dot d-${c.contractStatus.style}"></span>${c.contractStatus.label}</span>
+            </button>`).join("")}
+        </div>`}
+    </section>
+
+    <section class="panel">
       <h2 class="section-title">Needs attention (maintenance)</h2>
       ${s.maintNeedsAttention.length === 0 ? `<p class="empty-note">No open or in-progress maintenance requests.</p>` : `
         <div>
@@ -1494,6 +1607,10 @@ function goToMaintenanceFiltered(status) {
 }
 function goToListingsTab() {
   state.tab = "listings";
+  render();
+}
+function goToMaintenanceTab() {
+  state.tab = "maintenance";
   render();
 }
 function goToListingsFiltered(query) {
@@ -1551,8 +1668,8 @@ function tenantResultsHtml() {
 }
 
 function tenantTableHtml() {
-  const rows = filteredTenants();
-  if (rows.length === 0) {
+  const allRows = filteredTenants();
+  if (allRows.length === 0) {
     return `
     <div class="empty-state">
       <p class="title">No inquiries match these filters.</p>
@@ -1563,10 +1680,15 @@ function tenantTableHtml() {
   <div class="table-wrap"><div class="table-scroll">
     <table class="data">
       <thead><tr>
-        <th>Date</th><th>Brand / tenant</th><th>Category</th><th>Property / unit</th><th>Contact</th><th>Status</th><th class="right">Actions</th>
+        <th>Date</th><th>Brand / tenant</th><th>Category</th><th>Property / unit</th><th>Contact</th><th>Status</th><th>Progress</th><th class="right">Actions</th>
       </tr></thead>
       <tbody>
-        ${rows.map((t) => `
+        ${(() => {
+          const totalPages = Math.max(1, Math.ceil(allRows.length / state.tenantPageSize));
+          state.tenantPage = Math.min(Math.max(1, state.tenantPage), totalPages);
+          const start = (state.tenantPage - 1) * state.tenantPageSize;
+          const rows = allRows.slice(start, start + state.tenantPageSize);
+          return rows.map((t) => `
           <tr>
             <td style="white-space:nowrap;">${fmtDate(t.dateInquired)}</td>
             <td>
@@ -1582,16 +1704,24 @@ function tenantTableHtml() {
               <p class="cell-sub">${esc(t.mobile)}</p>
             </td>
             <td>${badgeHtml(t.status)}</td>
+            <td style="min-width:110px;">
+              <div style="display:flex;align-items:center;gap:7px;">
+                <div class="stage-track" style="flex:1;"><div class="stage-fill" style="width:${pipelineProgressPct(t.status)}%; background:${t.status === "Lost/ Inactive" ? "var(--stone-300)" : "var(--emerald-700)"};"></div></div>
+                <span style="font-size:11.5px;color:var(--stone-500);width:30px;text-align:right;">${pipelineProgressPct(t.status)}%</span>
+              </div>
+            </td>
             <td>
               <div class="row-actions">
                 <button class="icon-btn" onclick="openEditTenant('${t.id}')" aria-label="Edit">${icon("pencil", 15)}</button>
                 <button class="icon-btn danger" onclick="askDeleteTenant('${t.id}')" aria-label="Delete">${icon("trash", 15)}</button>
               </div>
             </td>
-          </tr>`).join("")}
+          </tr>`).join("");
+        })()}
       </tbody>
     </table>
-  </div></div>`;
+  </div></div>
+  ${paginationBarHtml("tenant", state.tenantPage, state.tenantPageSize, allRows.length)}`;
 }
 
 function tenantKanbanHtml() {
@@ -1661,14 +1791,17 @@ function onKanbanDrop(e, newStatus) {
 
 function onTenantSearch(v) {
   state.tenantSearch = v;
+  state.tenantPage = 1;
   document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
 }
 function onTenantStatusFilter(v) {
   state.tenantStatusFilter = v;
+  state.tenantPage = 1;
   document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
 }
 function onTenantPropertyFilter(v) {
   state.tenantPropertyFilter = v;
+  state.tenantPage = 1;
   document.getElementById("tenant-results").innerHTML = tenantResultsHtml();
 }
 
@@ -1691,6 +1824,7 @@ function listingsTabHtml() {
 
 function onListingSearch(v) {
   state.listingSearch = v;
+  state.listingPage = 1;
   document.getElementById("listing-results").innerHTML = listingResultsHtml();
 }
 
@@ -1698,15 +1832,21 @@ function listingResultsHtml() {
   const lc = listingsComputed();
   const q = state.listingSearch.trim().toLowerCase();
   const matches = (l) => !q || [l.unit, l.property, l.label].some((v) => (v || "").toLowerCase().includes(q));
-  const properties = PROPERTIES.filter((p) => lc.some((l) => l.property === p && matches(l)));
+  const allMatching = lc.filter(matches);
 
-  if (q && properties.length === 0) {
+  if (q && allMatching.length === 0) {
     return `
     <div class="empty-state">
       <p class="title">No units match "${esc(state.listingSearch)}".</p>
       <p class="sub">Try a different unit number, property name, or status.</p>
     </div>`;
   }
+
+  const totalPages = Math.max(1, Math.ceil(allMatching.length / state.listingPageSize));
+  state.listingPage = Math.min(Math.max(1, state.listingPage), totalPages);
+  const start = (state.listingPage - 1) * state.listingPageSize;
+  const pageItems = allMatching.slice(start, start + state.listingPageSize);
+  const properties = PROPERTIES.filter((p) => pageItems.some((l) => l.property === p));
 
   return properties.map((property) => `
       <section class="property-block">
@@ -1717,7 +1857,7 @@ function listingResultsHtml() {
               <th>Unit</th><th>Floor area</th><th>Asking rate</th><th>Est. monthly rent</th><th>Status</th><th class="right">Inquiries</th><th class="right">Actions</th>
             </tr></thead>
             <tbody>
-              ${lc.filter((l) => l.property === property && matches(l)).map((l) => `
+              ${pageItems.filter((l) => l.property === property).map((l) => `
                 <tr>
                   <td style="font-weight:500;color:var(--stone-900);">${esc(l.unit)}</td>
                   <td>${l.floorArea ? esc(l.floorArea) + " sqm" : "—"}</td>
@@ -1728,15 +1868,18 @@ function listingResultsHtml() {
                     ? `<button class="link-count" onclick="goToTenantsForListing('${l.id}')">${l.count}</button>`
                     : `<span style="color:var(--stone-400);">0</span>`}</td>
                   <td class="right">
-                    ${(!l.floorArea && !l.askingRate)
-                      ? `<button class="btn-xs" onclick="openEditListing('${l.id}')">${icon("plus", 13)} Add details</button>`
-                      : `<button class="icon-btn" onclick="openEditListing('${l.id}')" aria-label="Edit">${icon("pencil", 15)}</button>`}
+                    <div class="row-actions">
+                      ${(!l.floorArea && !l.askingRate)
+                        ? `<button class="btn-xs" onclick="openEditListing('${l.id}')">${icon("plus", 13)} Add details</button>`
+                        : `<button class="icon-btn" onclick="openEditListing('${l.id}')" aria-label="Edit">${icon("pencil", 15)}</button>`}
+                      <button class="icon-btn danger" onclick="askDeleteListing('${l.id}')" aria-label="Delete">${icon("trash", 15)}</button>
+                    </div>
                   </td>
                 </tr>`).join("")}
             </tbody>
           </table>
         </div></div>
-      </section>`).join("");
+      </section>`).join("") + paginationBarHtml("listing", state.listingPage, state.listingPageSize, allMatching.length);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -2126,6 +2269,31 @@ function openEditListing(id) {
   render();
 }
 function closeListingModal() { state.editingListing = null; state.showNewListing = false; state.listingFormError = ""; render(); }
+
+function askDeleteListing(id) { state.deletingListingId = id; render(); }
+function cancelDeleteListing() { state.deletingListingId = null; render(); }
+function confirmDeleteListing() {
+  const id = state.deletingListingId;
+  state.listings = state.listings.filter((l) => l.id !== id);
+  state.deletingListingId = null;
+  render();
+  sb.from("plud_listings").delete().eq("id", id).then(({ error }) => {
+    if (error) console.error("Supabase delete (listing) failed:", error);
+  });
+}
+function confirmDeleteListingDialogHtml() {
+  return `
+  <div class="overlay">
+    <div class="modal confirm">
+      <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Delete this unit?</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">This removes the listing permanently, including its floor area and rate. This can't be undone.</p>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn btn-outline" onclick="cancelDeleteListing()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteListing()">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
 
 function listingModalHtml() {
   const isNew = state.showNewListing;
@@ -2810,7 +2978,12 @@ function maintenanceTabHtml() {
     <div class="ws-columns">
       <div class="ws-panel">
         <div class="ws-panel-title"><h2>Work orders</h2><span class="count">${state.maintenance.length} total</span></div>
-        ${state.maintenance.length === 0 ? `<p class="empty-note">No work orders yet.</p>` : state.maintenance.map((m) => `
+        ${state.maintenance.length === 0 ? `<p class="empty-note">No work orders yet.</p>` : (() => {
+          const totalPages = Math.max(1, Math.ceil(state.maintenance.length / state.maintPageSize));
+          state.maintPage = Math.min(Math.max(1, state.maintPage), totalPages);
+          const start = (state.maintPage - 1) * state.maintPageSize;
+          const pageItems = state.maintenance.slice(start, start + state.maintPageSize);
+          return pageItems.map((m) => `
           <div class="wo-card">
             <div class="wo-top">
               <div class="wo-icon" style="background:var(--${(MAINT_PRIORITY_STYLE[m.priority] || "slate").replace("slate", "stone")}-100);color:var(--${(MAINT_PRIORITY_STYLE[m.priority] || "slate").replace("slate", "stone")}-700);">${icon("wrench", 16)}</div>
@@ -2829,7 +3002,8 @@ function maintenanceTabHtml() {
                 </div>
               </div>
             </div>
-          </div>`).join("")}
+          </div>`).join("") + paginationBarHtml("maint", state.maintPage, state.maintPageSize, state.maintenance.length);
+        })()}
       </div>
 
       <div class="ws-panel">
