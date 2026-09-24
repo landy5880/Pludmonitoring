@@ -612,6 +612,8 @@ const state = {
   tenantPageSize: 20,
   listingPage: 1,
   listingPageSize: 20,
+  listingDateFrom: "",
+  listingDateTo: "",
   maintPage: 1,
   maintPageSize: 20,
   tenantStatusFilter: "All",
@@ -1816,6 +1818,15 @@ function listingsTabHtml() {
         ${icon("search", 16)}
         <input id="listing-search" class="input" placeholder="Search unit, property, or status..." value="${esc(state.listingSearch)}" oninput="onListingSearch(this.value)" />
       </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--stone-500);">
+        From
+        <input type="date" class="input" style="width:auto;" value="${esc(state.listingDateFrom)}" onchange="onListingDateFrom(this.value)" />
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--stone-500);">
+        To
+        <input type="date" class="input" style="width:auto;" value="${esc(state.listingDateTo)}" onchange="onListingDateTo(this.value)" />
+      </label>
+      ${(state.listingDateFrom || state.listingDateTo) ? `<button class="btn-link-back" onclick="clearListingDateRange()">${icon("x", 13)} Clear dates</button>` : ""}
       <button class="btn btn-primary" onclick="openNewListing()">${icon("plus", 16)} Add listing</button>
     </div>
     <div id="listing-results">${listingResultsHtml()}</div>
@@ -1827,18 +1838,40 @@ function onListingSearch(v) {
   state.listingPage = 1;
   document.getElementById("listing-results").innerHTML = listingResultsHtml();
 }
+function onListingDateFrom(v) {
+  state.listingDateFrom = v;
+  state.listingPage = 1;
+  document.getElementById("listing-results").innerHTML = listingResultsHtml();
+}
+function onListingDateTo(v) {
+  state.listingDateTo = v;
+  state.listingPage = 1;
+  document.getElementById("listing-results").innerHTML = listingResultsHtml();
+}
+function clearListingDateRange() {
+  state.listingDateFrom = "";
+  state.listingDateTo = "";
+  state.listingPage = 1;
+  render();
+}
 
 function listingResultsHtml() {
   const lc = listingsComputed();
   const q = state.listingSearch.trim().toLowerCase();
-  const matches = (l) => !q || [l.unit, l.property, l.label].some((v) => (v || "").toLowerCase().includes(q));
+  const matchesSearch = (l) => !q || [l.unit, l.property, l.label].some((v) => (v || "").toLowerCase().includes(q));
+  const matchesDate = (l) => {
+    if (state.listingDateFrom && (!l.createdAt || l.createdAt < state.listingDateFrom)) return false;
+    if (state.listingDateTo && (!l.createdAt || l.createdAt > state.listingDateTo)) return false;
+    return true;
+  };
+  const matches = (l) => matchesSearch(l) && matchesDate(l);
   const allMatching = lc.filter(matches);
 
-  if (q && allMatching.length === 0) {
+  if ((q || state.listingDateFrom || state.listingDateTo) && allMatching.length === 0) {
     return `
     <div class="empty-state">
-      <p class="title">No units match "${esc(state.listingSearch)}".</p>
-      <p class="sub">Try a different unit number, property name, or status.</p>
+      <p class="title">${q ? `No units match "${esc(state.listingSearch)}".` : "No units in this date range."}</p>
+      <p class="sub">Try a different unit number, property name, status, or date range.</p>
     </div>`;
   }
 
