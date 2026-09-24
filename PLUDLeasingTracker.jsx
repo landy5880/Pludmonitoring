@@ -1254,6 +1254,7 @@ export default function PLUDLeasingTracker() {
   const [contracts, setContracts] = useState([]);
   const [showNewContract, setShowNewContract] = useState(false);
   const [deletingContractId, setDeletingContractId] = useState(null);
+  const [deletingListingId, setDeletingListingId] = useState(null);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [optionError, setOptionError] = useState({ category: "", concept: "", status: "" });
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
@@ -1741,6 +1742,14 @@ export default function PLUDLeasingTracker() {
     sbUpsert("plud_listings", [listingStateToRow(l)])
       .then(() => setSaveError(""))
       .catch((e) => { console.error("Supabase save (listing) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
+  }, []);
+
+  const deleteListing = useCallback((id) => {
+    setListings((prev) => prev.filter((l) => l.id !== id));
+    setDeletingListingId(null);
+    sbDelete("plud_listings", id)
+      .then(() => setSaveError(""))
+      .catch((e) => { console.error("Supabase delete (listing) failed:", e); setSaveError("Changes aren't saving to the database right now."); });
   }, []);
 
   const saveMaint = useCallback((m) => {
@@ -2603,18 +2612,23 @@ export default function PLUDLeasingTracker() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {(!l.floorArea && !l.askingRate) ? (
-                                <button
-                                  onClick={() => setEditingListing(l)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-900 px-2.5 py-1 text-xs font-medium text-emerald-900 hover:bg-amber-50"
-                                >
-                                  <Plus size={13} /> Add details
+                              <div className="flex items-center justify-end gap-1">
+                                {(!l.floorArea && !l.askingRate) ? (
+                                  <button
+                                    onClick={() => setEditingListing(l)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-900 px-2.5 py-1 text-xs font-medium text-emerald-900 hover:bg-amber-50"
+                                  >
+                                    <Plus size={13} /> Add details
+                                  </button>
+                                ) : (
+                                  <button onClick={() => setEditingListing(l)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-emerald-900" aria-label="Edit">
+                                    <Pencil size={15} />
+                                  </button>
+                                )}
+                                <button onClick={() => setDeletingListingId(l.id)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-rose-600" aria-label="Delete">
+                                  <Trash2 size={15} />
                                 </button>
-                              ) : (
-                                <button onClick={() => setEditingListing(l)} className="rounded-xl p-1.5 text-stone-400 hover:bg-stone-100 hover:text-emerald-900" aria-label="Edit">
-                                  <Pencil size={15} />
-                                </button>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -3212,6 +3226,15 @@ export default function PLUDLeasingTracker() {
           body="This removes the service contract permanently. This can't be undone."
           onCancel={() => setDeletingContractId(null)}
           onConfirm={() => deleteContract(deletingContractId)}
+        />
+      )}
+
+      {deletingListingId && (
+        <ConfirmDialog
+          title="Delete this unit?"
+          body="This removes the listing permanently, including its floor area and rate. This can't be undone."
+          onCancel={() => setDeletingListingId(null)}
+          onConfirm={() => deleteListing(deletingListingId)}
         />
       )}
 
