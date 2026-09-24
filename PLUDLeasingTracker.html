@@ -166,6 +166,11 @@
   .btn-block{width:100%; justify-content:center;}
   .btn-link{display:block; width:100%; text-align:center; background:none; border:none; color:var(--teal-700); font-size:13px; margin-top:12px; cursor:pointer; padding:4px;}
   .btn-link:hover{text-decoration:underline;}
+  .btn:focus-visible, .icon-btn:focus-visible, .nav-item:focus-visible, .cell-link:focus-visible, .pipeline-item:focus-visible, .kpi-card:focus-visible, .view-toggle-btn:focus-visible, .report-type-row:focus-visible{outline:3px solid rgba(216,240,90,.8); outline-offset:2px;}
+  .sync-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--stone-500);}
+  .sync-status .dot{width:7px;height:7px;background:var(--emerald-500);}
+  .sync-status.offline{color:var(--amber-800);}
+  .sync-status.offline .dot{background:var(--amber-500);}
   .icon-btn{border:none; background:none; cursor:pointer; padding:6px; border-radius:10px; color:var(--stone-400);}
   .icon-btn:hover{background:var(--stone-100); color:var(--teal-700);}
   .icon-btn.danger:hover{color:var(--rose-600);}
@@ -315,6 +320,12 @@
   .option-remove{flex-shrink:0; font-size:12.5px; color:var(--rose-600); text-decoration:underline; text-underline-offset:2px; background:none; border:none; cursor:pointer; padding:0;}
   .option-remove:hover{color:var(--rose-700);}
   .option-remove.disabled{color:var(--stone-300); cursor:default; text-decoration:none;}
+  .settings-kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  @media(min-width:640px){.settings-kpi-grid{grid-template-columns:repeat(4,1fr);}}
+  .settings-kpi{border:1px solid var(--stone-200);border-top:3px solid var(--teal-700);border-radius:10px;background:#fff;padding:13px 14px;}
+  .settings-kpi-label{font-size:11px;color:var(--stone-500);font-weight:600;}
+  .settings-kpi-value{font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--stone-900);margin-top:3px;}
+  .settings-section-note{font-size:12px;color:var(--stone-500);margin:-8px 0 14px;}
   .btn-xs{display:inline-flex; align-items:center; gap:4px; border-radius:10px; padding:5px 10px; font-size:12px; font-weight:500; border:1px solid var(--teal-700); color:var(--teal-700); background:#fff; cursor:pointer; white-space:nowrap;}
   .btn-xs:hover{background:var(--amber-50);}
   .empty-state{border:1px dashed var(--stone-300); background:#fff; border-radius:12px; padding:56px 16px; text-align:center;}
@@ -370,6 +381,13 @@
     .sidebar-brand{justify-content:center;}
     .nav-item{justify-content:center;}
     .btn-block span{display:none;}
+    .main{padding:20px 16px 36px;}
+    .banner{padding:8px 16px;}
+    .dash-quick-actions{width:100%;}
+    .dash-quick-actions .btn{flex:1;justify-content:center;min-width:0;}
+    .toolbar .input.auto{width:100%;}
+    .toolbar .search-wrap{min-width:100%;}
+    .ops-flag-row{grid-template-columns:1fr;}
   }
 
   /* report-specific */
@@ -383,6 +401,43 @@
   .report-type-row.active{background:var(--amber-50); border-left-color:var(--teal-700); color:var(--teal-800); font-weight:600;}
   .report-summary-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
   @media(min-width:640px){.report-summary-grid{grid-template-columns:repeat(4,1fr);}}
+  .report-filter-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:-4px 0 16px;font-size:12px;color:var(--stone-500);}
+  .report-filter-meta strong{color:var(--stone-700);}
+  .report-filter-error{margin:-4px 0 16px;padding:9px 12px;border-radius:9px;background:var(--rose-50);color:var(--rose-700);font-size:13px;}
+  .report-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0 10px;}
+  .report-section-title h2{font-family:var(--font-serif);font-size:15px;font-weight:600;color:var(--stone-900);margin:0;}
+  .report-mini-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:20px;}
+  @media(min-width:800px){.report-mini-grid{grid-template-columns:1fr 1fr;}}
+  .report-presets{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+  .report-preset{border:1px solid var(--stone-300);background:#fff;color:var(--stone-600);border-radius:999px;padding:5px 9px;font-size:11.5px;cursor:pointer;}
+  .report-preset:hover,.report-preset.active{border-color:var(--teal-700);color:var(--teal-800);background:var(--amber-50);}
+  .report-breakdown{border:1px solid var(--stone-200);border-radius:12px;background:#fff;padding:16px;}
+  .report-breakdown h3{font-family:var(--font-serif);font-size:14px;font-weight:600;color:var(--stone-900);margin:0 0 12px;}
+  .report-breakdown-row{display:grid;grid-template-columns:minmax(120px,1fr) 1fr auto;align-items:center;gap:8px;margin:9px 0;font-size:12px;color:var(--stone-600);}
+  .report-breakdown-row .track{height:7px;border-radius:99px;background:var(--stone-100);overflow:hidden;}
+  .report-breakdown-row .fill{height:100%;border-radius:99px;background:var(--teal-700);}
+  .report-breakdown-row .value{font-weight:600;color:var(--stone-800);min-width:28px;text-align:right;}
+  .report-sort-btn{display:inline-flex;align-items:center;gap:5px;padding:0;border:none;background:none;color:inherit;font:inherit;font-weight:inherit;cursor:pointer;white-space:nowrap;}
+  .report-sort-btn:hover{color:var(--teal-700);}
+  .report-sort-indicator{font-size:11px;color:var(--teal-700);}
+  .report-view-toggle{display:flex;border:1px solid var(--stone-300);border-radius:10px;overflow:hidden;}
+  .report-view-btn{border:0;border-right:1px solid var(--stone-300);background:#fff;color:var(--stone-600);padding:7px 10px;font-size:12px;cursor:pointer;}
+  .report-view-btn:last-child{border-right:0;}
+  .report-view-btn.active{background:var(--teal-700);color:#fff;}
+  .report-kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 18px;}
+  @media(min-width:640px){.report-kpi-grid{grid-template-columns:repeat(4,1fr);}}
+  .report-kpi{border:1px solid var(--stone-200);border-top:3px solid var(--teal-700);border-radius:10px;background:#fff;padding:13px 14px;}
+  .report-kpi-label{font-size:11px;color:var(--stone-500);font-weight:600;}
+  .report-kpi-value{font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--stone-900);margin-top:3px;}
+  .report-chart-panel{border:1px solid var(--stone-200);border-radius:12px;background:#fff;padding:16px;margin-bottom:18px;}
+  .report-chart-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;}
+  .report-chart-heading h2{font-family:var(--font-serif);font-size:15px;font-weight:600;margin:0;color:var(--stone-900);}
+  .report-chart{display:flex;align-items:flex-end;gap:10px;min-height:190px;padding:12px 4px 0;border-bottom:1px solid var(--stone-200);overflow-x:auto;}
+  .report-chart-bar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;min-width:42px;height:165px;}
+  .report-chart-bar .bar{width:24px;min-height:3px;border-radius:5px 5px 0 0;background:var(--teal-700);position:relative;}
+  .report-chart-bar .bar span{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--stone-600);}
+  .report-chart-bar .label{font-size:10px;color:var(--stone-500);white-space:nowrap;transform:rotate(-35deg);transform-origin:top center;margin-top:8px;}
+  .report-view-hidden{display:none !important;}
 
   @media print{
     .sidebar, .banner, .no-print{display:none !important;}
@@ -509,7 +564,8 @@ const SEED_CONTRACTS = [
   { id: "C3", property: "Vine Building", vendorName: "AquaShield", contractType: "HVAC preventive maintenance", expires: "2026-10-31", annualValue: 14500 },
 ];
 
-const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
+const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key
+const DATA_CACHE_KEY = "plud-leasing-tracker-cache-v2";
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY2lheWh4dmtxaG1nY2RmdmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMjU4NTIsImV4cCI6MjEwNDYwMTg1Mn0.nzt3RSE65MrR_Y3lqPiGFwYgdoBnsYDC8ket3GifYuk";
@@ -583,6 +639,7 @@ function icon(name, size, cls) {
     wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>',
     report: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line><line x1="9" y1="9" x2="10" y2="9"></line>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>',
     printer: '<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>',
   };
   return `<svg class="icon ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name] || ""}</svg>`;
@@ -633,6 +690,14 @@ const state = {
   reportFrom: "",
   reportTo: "",
   reportSearch: "",
+  reportFilterError: "",
+  reportPreset: "All time",
+  reportPage: 1,
+  reportPageSize: 20,
+  reportSortKey: "date",
+  reportSortDir: "desc",
+  reportStatusFilter: "All",
+  reportView: "both",
   customCategories: [],
   customConcepts: [],
   customStatuses: [],
@@ -644,6 +709,10 @@ const state = {
   showNewContract: false,
   deletingContractId: null,
   deletingListingId: null,
+  deletingOptionId: null,
+  showRestoreBackup: false,
+  restoreBackupError: "",
+  restoreBackupPreview: null,
   contractFormError: "",
   showSignOutConfirm: false,
   lastSyncedAt: null,
@@ -658,6 +727,7 @@ const state = {
   activitiesLoading: false,
   newActivityType: "Call",
   newActivityNote: "",
+  usingLocalCache: false,
 };
 
 function allCategories() {
@@ -703,6 +773,34 @@ const sessionStore = {
     try { localStorage.removeItem(key); return { key, deleted: true }; } catch (e) { return null; }
   },
 };
+
+function cacheSnapshot() {
+  if (!state.user || state.loading) return;
+  const snapshot = {
+    savedAt: new Date().toISOString(),
+    tenants: state.tenants, listings: state.listings, maintenance: state.maintenance,
+    contracts: state.contracts, users: state.users,
+    customCategories: state.customCategories, customConcepts: state.customConcepts, customStatuses: state.customStatuses,
+  };
+  try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(snapshot)); } catch (e) { /* best effort only */ }
+}
+
+function restoreCachedSnapshot(raw) {
+  try {
+    const snapshot = JSON.parse(raw);
+    if (!snapshot || !Array.isArray(snapshot.tenants) || !Array.isArray(snapshot.listings)) return false;
+    state.tenants = snapshot.tenants; state.listings = snapshot.listings;
+    state.maintenance = Array.isArray(snapshot.maintenance) ? snapshot.maintenance : [];
+    state.contracts = Array.isArray(snapshot.contracts) ? snapshot.contracts : [];
+    state.users = Array.isArray(snapshot.users) ? snapshot.users : [];
+    state.customCategories = Array.isArray(snapshot.customCategories) ? snapshot.customCategories : [];
+    state.customConcepts = Array.isArray(snapshot.customConcepts) ? snapshot.customConcepts : [];
+    state.customStatuses = Array.isArray(snapshot.customStatuses) ? snapshot.customStatuses : [];
+    state.usingLocalCache = true;
+    state.lastSyncedAt = snapshot.savedAt ? new Date(snapshot.savedAt) : null;
+    return true;
+  } catch (e) { return false; }
+}
 
 // Data storage: tenants and listings live in Supabase so they persist
 // across browsers/devices and work on the published static site, not just
@@ -839,18 +937,29 @@ async function loadData() {
     state.customStatuses = optionsRes.data.filter((o) => o.option_type === "status");
     state.users = usersRes.data;
     state.saveError = "";
+    state.usingLocalCache = false;
     state.lastSyncedAt = new Date();
   } catch (e) {
     console.error("Supabase load failed:", e);
-    state.tenants = SEED_TENANTS;
-    state.listings = SEED_LISTINGS;
-    state.maintenance = SEED_MAINTENANCE;
-    state.contracts = SEED_CONTRACTS;
-    state.users = [];
-    state.customCategories = [];
-    state.customConcepts = [];
-    state.customStatuses = [];
-    state.saveError = "Couldn't reach the database — showing local sample data, changes won't be saved.";
+    let restored = false;
+    try {
+      const cached = localStorage.getItem(DATA_CACHE_KEY);
+      restored = cached ? restoreCachedSnapshot(cached) : false;
+    } catch (cacheError) { /* use seed data below */ }
+    if (!restored) {
+      state.tenants = SEED_TENANTS;
+      state.listings = SEED_LISTINGS;
+      state.maintenance = SEED_MAINTENANCE;
+      state.contracts = SEED_CONTRACTS;
+      state.users = [];
+      state.customCategories = [];
+      state.customConcepts = [];
+      state.customStatuses = [];
+      state.usingLocalCache = true;
+    }
+    state.saveError = restored
+      ? "Database unavailable — showing your last saved local copy. Try refresh to reconnect."
+      : "Database unavailable — showing sample data. Changes are kept locally until you reconnect.";
   }
   state.loading = false;
 }
@@ -1182,7 +1291,12 @@ function badgeHtml(status, styleMap) {
 
 function bannerHtml() {
   if (!state.saveError) return `<div id="save-banner"></div>`;
-  return `<div id="save-banner" class="banner">${icon("alert", 14)} ${esc(state.saveError)}</div>`;
+  return `<div id="save-banner" class="banner">${icon("alert", 14)} <span>${esc(state.saveError)}</span><button class="btn btn-xs" style="margin-left:auto;border-color:var(--amber-700);color:var(--amber-800);" onclick="refreshData()">${icon("loader", 13)} Refresh</button></div>`;
+}
+async function refreshData() {
+  if (!state.user || state.loading) return;
+  await loadData();
+  render();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1306,7 +1420,7 @@ function appShellHtml() {
         ${NAV_GROUPS.map((g) => `
           ${g.label ? `<p class="nav-group-label">${esc(g.label)}</p>` : ""}
           ${g.items.map((n) => `
-            <button class="nav-item ${state.tab === n.id ? "active" : ""}" onclick="setTab('${n.id}')">
+            <button class="nav-item ${state.tab === n.id ? "active" : ""}" title="${esc(n.label)}" aria-label="${esc(n.label)}" onclick="setTab('${n.id}')">
               ${icon(n.icon, 16)} <span>${n.label}</span>
             </button>`).join("")}`).join("")}
       </nav>
@@ -1333,6 +1447,8 @@ function appShellHtml() {
   ${state.showNewContract ? contractModalHtml() : ""}
   ${state.deletingContractId ? confirmDeleteContractDialogHtml() : ""}
   ${state.deletingListingId ? confirmDeleteListingDialogHtml() : ""}
+  ${state.deletingOptionId ? confirmDeleteOptionDialogHtml() : ""}
+  ${state.showRestoreBackup ? restoreBackupModalHtml() : ""}
   ${state.showSignOutConfirm ? confirmSignOutDialogHtml() : ""}
   `;
 }
@@ -1380,7 +1496,7 @@ function dashboardHtml() {
       <div>
         <h1 class="dash-greeting">${greetingWord()}, ${esc(state.user.name)}</h1>
         <p class="dash-subtitle">Property Leasing &amp; Operations Overview</p>
-        <p class="dash-meta">${esc(today)} · Last synced ${fmtSyncTime(state.lastSyncedAt)}</p>
+        <p class="dash-meta">${esc(today)} · Last synced ${fmtSyncTime(state.lastSyncedAt)} <span class="sync-status ${state.usingLocalCache ? "offline" : ""}"><span class="dot"></span>${state.usingLocalCache ? "Local recovery copy" : "Connected"}</span></p>
       </div>
       <div class="dash-quick-actions">
         <button class="btn btn-outline" onclick="openNewTenant()">${icon("plus", 15)} New inquiry</button>
@@ -2442,6 +2558,7 @@ const REPORT_TYPES = [
 ];
 
 function inReportDateRange(dateStr) {
+  if (state.reportFilterError) return false;
   if (!state.reportFrom && !state.reportTo) return true;
   if (!dateStr) return false;
   if (state.reportFrom && dateStr < state.reportFrom) return false;
@@ -2453,10 +2570,21 @@ function matchesReportSearch(fields) {
   const q = state.reportSearch.toLowerCase();
   return fields.some((v) => (v || "").toString().toLowerCase().includes(q));
 }
+function reportStatusOptions() {
+  if (state.reportType === "pipeline") return allStatuses();
+  if (state.reportType === "maintenance") return MAINT_STATUSES;
+  return ["Available", "Occupied", "Active inquiry"];
+}
+function matchesReportStatus(row) {
+  if (state.reportStatusFilter === "All") return true;
+  if (state.reportType === "occupancy") return row.label === state.reportStatusFilter || (state.reportStatusFilter === "Active inquiry" && row.kind === "active");
+  return row.status === state.reportStatusFilter;
+}
 
 function reportPipelineRows() {
   return state.tenants
     .filter((t) => inReportDateRange(t.dateInquired))
+    .filter((t) => matchesReportStatus(t))
     .filter((t) => matchesReportSearch([t.brand, t.concept, t.contact, t.property, t.unit, t.email, t.category, t.status]))
     .slice()
     .sort((a, b) => (b.dateInquired || "").localeCompare(a.dateInquired || ""));
@@ -2464,6 +2592,7 @@ function reportPipelineRows() {
 function reportMaintenanceRows() {
   return state.maintenance
     .filter((m) => inReportDateRange(m.reportedDate))
+    .filter((m) => matchesReportStatus(m))
     .filter((m) => matchesReportSearch([m.issue, m.property, m.unit, m.assignedTo, m.priority, m.status, m.notes]))
     .slice()
     .sort((a, b) => (b.reportedDate || "").localeCompare(a.reportedDate || ""));
@@ -2471,6 +2600,7 @@ function reportMaintenanceRows() {
 function reportOccupancyRows() {
   return listingsComputed()
     .filter((l) => inReportDateRange(l.createdAt))
+    .filter((l) => matchesReportStatus(l))
     .filter((l) => matchesReportSearch([l.property, l.unit, l.label, l.notes]));
 }
 
@@ -2485,6 +2615,7 @@ function reportsTabHtml() {
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-outline" onclick="window.print()">${icon("printer", 16)} Print</button>
+        <button class="btn btn-outline" onclick="exportReportPdf()">${icon("printer", 16)} Export PDF</button>
         <button class="btn btn-primary" onclick="exportReportCsv()">${icon("download", 16)} Export CSV</button>
       </div>
     </div>
@@ -2504,7 +2635,18 @@ function reportsTabHtml() {
       <label style="font-size:12px;color:var(--stone-600);display:flex;align-items:center;gap:6px;">To
         <input type="date" class="input" style="width:auto;" value="${esc(state.reportTo)}" onchange="onReportDateChange('reportTo', this.value)" />
       </label>
+      <select class="input auto" aria-label="Filter by status" onchange="onReportStatusFilter(this.value)">
+        <option value="All">All statuses</option>
+        ${reportStatusOptions().map((s) => `<option value="${esc(s)}" ${state.reportStatusFilter === s ? "selected" : ""}>${esc(s)}</option>`).join("")}
+      </select>
+      <button class="btn-link-back" onclick="clearReportFilters()">${icon("x", 13)} Clear filters</button>
     </div>
+    <div class="report-presets no-print" style="margin:-8px 0 16px;">
+      <span style="font-size:12px;color:var(--stone-500);">Quick range:</span>
+      ${["All time", "This month", "Last 30 days", "This year"].map((p) => `<button class="report-preset ${state.reportPreset === p ? "active" : ""}" onclick="setReportPreset('${p}')">${p}</button>`).join("")}
+    </div>
+
+    ${state.reportFilterError ? `<div class="report-filter-error">${icon("alert", 14)} ${esc(state.reportFilterError)}</div>` : ""}
 
     <div id="report-body">${reportBodyHtml()}</div>
   </div>`;
@@ -2516,112 +2658,287 @@ function reportBodyHtml() {
   return reportOccupancyHtml();
 }
 
+function reportDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const start = new Date(dateStr + "T00:00:00").getTime();
+  const today = new Date(new Date().toDateString()).getTime();
+  return Number.isFinite(start) ? Math.max(0, Math.floor((today - start) / 86400000)) : null;
+}
+
+function reportBreakdownHtml(title, entries, color) {
+  const rows = entries.filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...rows.map((x) => x[1]));
+  return `<section class="report-breakdown"><h3>${esc(title)}</h3>${rows.length ? rows.map(([label, count]) => `<div class="report-breakdown-row"><span>${esc(label)}</span><div class="track"><div class="fill" style="width:${Math.round((count / max) * 100)}%;background:${color || "var(--teal-700)"};"></div></div><span class="value">${count}</span></div>`).join("") : `<p class="empty-note" style="padding:8px 0;">No breakdown data for this filter.</p>`}</section>`;
+}
+
+function reportChartHtml(title, entries, color) {
+  const max = Math.max(1, ...entries.map((x) => x[1]));
+  return `<section class="report-chart-panel ${state.reportView === "table" ? "report-view-hidden" : ""}"><div class="report-chart-heading"><h2>${esc(title)}</h2><span style="font-size:11px;color:var(--stone-400);">Filtered records</span></div><div class="report-chart">${entries.map(([label, value]) => `<div class="report-chart-bar" title="${esc(label)}: ${value}"><div class="bar" style="height:${Math.max(3, Math.round((value / max) * 145))}px;background:${color || "var(--teal-700)"};"><span>${value}</span></div><span class="label">${esc(label)}</span></div>`).join("")}</div></section>`;
+}
+function reportAnalyticsHtml(rows) {
+  let cards = [], chartTitle = "Report trend", entries = [];
+  if (state.reportType === "pipeline") {
+    const active = rows.filter((r) => !["Awarded/ Leased", "Lost/ Inactive"].includes(r.status));
+    const awarded = rows.filter((r) => r.status === "Awarded/ Leased").length;
+    const overdue = rows.filter((r) => allFollowUps().some((f) => f.id === r.id && f.followUpStatus === "Overdue")).length;
+    const ages = active.map((r) => reportDaysSince(r.dateInquired)).filter((d) => d !== null);
+    cards = [["Total inquiries", rows.length], ["Conversion", `${rows.length ? Math.round((awarded / rows.length) * 100) : 0}%`], ["Overdue follow-ups", overdue], ["Avg. active age", `${ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0}d`]];
+    chartTitle = "Inquiries by stage"; entries = allStatuses().map((s) => [s, rows.filter((r) => r.status === s).length]);
+  } else if (state.reportType === "maintenance") {
+    const open = rows.filter((r) => r.status === "Open" || r.status === "In Progress").length;
+    const aged = rows.filter((r) => (r.status === "Open" || r.status === "In Progress") && (reportDaysSince(r.reportedDate) || 0) >= 14).length;
+    const resolved = rows.filter((r) => r.status === "Resolved" && r.reportedDate && r.resolvedDate);
+    const avg = resolved.length ? (resolved.reduce((sum, r) => sum + Math.max(0, (new Date(r.resolvedDate + "T00:00:00") - new Date(r.reportedDate + "T00:00:00")) / 86400000), 0) / resolved.length).toFixed(1) : "—";
+    cards = [["Total requests", rows.length], ["Open", open], ["14+ days open", aged], ["Avg. resolution", avg === "—" ? avg : `${avg}d`]];
+    chartTitle = "Requests by status"; entries = MAINT_STATUSES.map((s) => [s, rows.filter((r) => r.status === s).length]);
+  } else {
+    const occupied = rows.filter((r) => r.kind === "occupied").length;
+    const totalArea = rows.reduce((sum, r) => sum + (Number(r.floorArea) || 0), 0);
+    const occupiedArea = rows.filter((r) => r.kind === "occupied").reduce((sum, r) => sum + (Number(r.floorArea) || 0), 0);
+    const rent = rows.reduce((sum, r) => sum + ((Number(r.floorArea) || 0) * (Number(r.askingRate) || 0)), 0);
+    cards = [["Total units", rows.length], ["Occupancy", `${rows.length ? Math.round((occupied / rows.length) * 100) : 0}%`], ["Area occupancy", `${totalArea ? Math.round((occupiedArea / totalArea) * 100) : 0}%`], ["Est. monthly rent", rent ? fmtMoney(rent) : "—"]];
+    chartTitle = "Units by status"; entries = [["Available", rows.filter((r) => r.kind === "available").length], ["Active inquiry", rows.filter((r) => r.kind === "active").length], ["Occupied", occupied]];
+  }
+  return `<div class="report-kpi-grid">${cards.map(([label, value]) => `<div class="report-kpi"><div class="report-kpi-label">${esc(label)}</div><div class="report-kpi-value">${esc(value)}</div></div>`).join("")}</div>${reportChartHtml(chartTitle, entries)}`;
+}
+
+function reportPageRows(rows) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / state.reportPageSize));
+  state.reportPage = Math.min(Math.max(1, state.reportPage), totalPages);
+  const start = (state.reportPage - 1) * state.reportPageSize;
+  return rows.slice(start, start + state.reportPageSize);
+}
+function reportSortValue(row, key) {
+  if (state.reportType === "pipeline") return ({ date: row.dateInquired, brand: row.brand || row.concept, category: row.category, property: row.property + " " + row.unit, contact: row.contact, nextFollowUp: row.nextFollowUp, status: row.status })[key] ?? "";
+  if (state.reportType === "maintenance") return ({ reported: row.reportedDate, property: row.property + " " + row.unit, issue: row.issue, priority: row.priority, assignedTo: row.assignedTo, resolved: row.resolvedDate, status: row.status })[key] ?? "";
+  return ({ property: row.property, unit: row.unit, floorArea: Number(row.floorArea) || 0, askingRate: Number(row.askingRate) || 0, rent: (Number(row.floorArea) || 0) * (Number(row.askingRate) || 0), active: row.active || 0, status: row.label })[key] ?? "";
+}
+function sortedReportRows(rows) {
+  const dir = state.reportSortDir === "asc" ? 1 : -1;
+  return rows.slice().sort((a, b) => {
+    const av = reportSortValue(a, state.reportSortKey);
+    const bv = reportSortValue(b, state.reportSortKey);
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+    return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * dir;
+  });
+}
+function reportSortHeader(label, key) {
+  const active = state.reportSortKey === key;
+  const indicator = active ? (state.reportSortDir === "asc" ? "↑" : "↓") : "↕";
+  return `<th><button class="report-sort-btn" onclick="toggleReportSort('${key}')">${esc(label)} <span class="report-sort-indicator">${indicator}</span></button></th>`;
+}
+function toggleReportSort(key) {
+  if (state.reportSortKey === key) state.reportSortDir = state.reportSortDir === "asc" ? "desc" : "asc";
+  else { state.reportSortKey = key; state.reportSortDir = "asc"; }
+  state.reportPage = 1;
+  render();
+}
+function reportPaginationHtml(total) {
+  if (total === 0) return "";
+  const totalPages = Math.max(1, Math.ceil(total / state.reportPageSize));
+  const start = (state.reportPage - 1) * state.reportPageSize + 1;
+  const end = Math.min(total, state.reportPage * state.reportPageSize);
+  return `<div class="pagination-bar no-print"><div class="pagination-size"><span>Show</span><select onchange="onReportPageSizeChange(this.value)">${[20, 30, 40, 100].map((n) => `<option value="${n}" ${state.reportPageSize === n ? "selected" : ""}>${n}</option>`).join("")}</select><span>per page</span></div><div class="pagination-info">${start}–${end} of ${total}</div><div class="pagination-nav"><button class="btn-xs" ${state.reportPage <= 1 ? "disabled" : ""} onclick="onReportPageChange(${state.reportPage - 1})">‹</button><span class="pagination-page">${state.reportPage} / ${totalPages}</span><button class="btn-xs" ${state.reportPage >= totalPages ? "disabled" : ""} onclick="onReportPageChange(${state.reportPage + 1})">›</button></div></div>`;
+}
+function onReportPageSizeChange(value) {
+  state.reportPageSize = Number(value);
+  state.reportPage = 1;
+  render();
+}
+function onReportPageChange(page) {
+  state.reportPage = page;
+  render();
+}
+
 function reportPipelineHtml() {
-  const rows = reportPipelineRows();
+  const rows = sortedReportRows(reportPipelineRows());
+  const displayRows = reportPageRows(rows);
   const total = rows.length;
   const awarded = rows.filter((r) => r.status === "Awarded/ Leased").length;
   const lost = rows.filter((r) => r.status === "Lost/ Inactive").length;
   const active = total - awarded - lost;
+  const overdue = rows.filter((r) => allFollowUps().some((f) => f.id === r.id && f.followUpStatus === "Overdue")).length;
   return `
+  ${reportAnalyticsHtml(rows)}
   <div class="report-summary-grid">
     <div class="stat-card"><p class="stat-label">Total inquiries</p><p class="stat-value">${total}</p></div>
     <div class="stat-card"><p class="stat-label">Active</p><p class="stat-value blue">${active}</p></div>
     <div class="stat-card"><p class="stat-label">Awarded / leased</p><p class="stat-value emerald">${awarded}</p></div>
     <div class="stat-card"><p class="stat-label">Lost / inactive</p><p class="stat-value rose">${lost}</p></div>
+    <div class="stat-card"><p class="stat-label">Conversion rate</p><p class="stat-value">${total ? Math.round((awarded / total) * 100) : 0}%</p></div>
+    <div class="stat-card"><p class="stat-label">Overdue follow-ups</p><p class="stat-value rose">${overdue}</p></div>
   </div>
   <div class="table-wrap"><div class="table-scroll">
     <table class="data">
-      <thead><tr><th>Date</th><th>Brand / tenant</th><th>Category</th><th>Property / unit</th><th>Contact</th><th>Status</th></tr></thead>
+      <thead><tr>${reportSortHeader("Date", "date")}${reportSortHeader("Brand / tenant", "brand")}${reportSortHeader("Category", "category")}${reportSortHeader("Property / unit", "property")}${reportSortHeader("Contact", "contact")}${reportSortHeader("Next follow-up", "nextFollowUp")}${reportSortHeader("Status", "status")}</tr></thead>
       <tbody>
-        ${rows.length === 0 ? `<tr><td colspan="6" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records in this date range.</td></tr>` : rows.map((t) => `
+        ${rows.length === 0 ? `<tr><td colspan="7" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records match the current filters.</td></tr>` : displayRows.map((t) => `
           <tr>
             <td style="white-space:nowrap;">${fmtDate(t.dateInquired)}</td>
             <td>${esc(t.brand || t.concept || "(no brand/concept yet)")}</td>
             <td>${esc(t.category)}</td>
             <td>${esc(t.property)}${t.unit ? " · " + esc(t.unit) : ""}</td>
             <td>${esc(t.contact)}</td>
+            <td style="white-space:nowrap;">${t.nextFollowUp ? fmtDate(t.nextFollowUp) : "—"}</td>
             <td>${badgeHtml(t.status)}</td>
           </tr>`).join("")}
       </tbody>
     </table>
-  </div></div>`;
+  </div></div>
+  ${reportPaginationHtml(rows.length)}
+  <div class="report-mini-grid">
+    ${reportBreakdownHtml("Inquiries by stage", allStatuses().map((s) => [s, rows.filter((r) => r.status === s).length]), "var(--teal-700)")}
+    ${reportBreakdownHtml("Inquiries by property", [...new Set(rows.map((r) => r.property).filter(Boolean))].map((p) => [p, rows.filter((r) => r.property === p).length]), "var(--blue-500)")}
+  </div>`;
 }
 
 function reportMaintenanceHtml() {
-  const rows = reportMaintenanceRows();
+  const rows = sortedReportRows(reportMaintenanceRows());
+  const displayRows = reportPageRows(rows);
   const total = rows.length;
   const open = rows.filter((r) => r.status === "Open" || r.status === "In Progress").length;
   const resolved = rows.filter((r) => r.status === "Resolved").length;
   const urgent = rows.filter((r) => r.priority === "Urgent").length;
+  const overdue = rows.filter((r) => (r.status === "Open" || r.status === "In Progress") && (reportDaysSince(r.reportedDate) || 0) >= 14).length;
+  const resolvedWithDates = rows.filter((r) => r.status === "Resolved" && r.reportedDate && r.resolvedDate);
+  const avgResolution = resolvedWithDates.length ? (resolvedWithDates.reduce((sum, r) => sum + Math.max(0, (new Date(r.resolvedDate + "T00:00:00") - new Date(r.reportedDate + "T00:00:00")) / 86400000), 0) / resolvedWithDates.length).toFixed(1) : "—";
   return `
+  ${reportAnalyticsHtml(rows)}
   <div class="report-summary-grid">
     <div class="stat-card"><p class="stat-label">Total requests</p><p class="stat-value">${total}</p></div>
     <div class="stat-card"><p class="stat-label">Open / in progress</p><p class="stat-value blue">${open}</p></div>
     <div class="stat-card"><p class="stat-label">Resolved</p><p class="stat-value emerald">${resolved}</p></div>
     <div class="stat-card"><p class="stat-label">Urgent priority</p><p class="stat-value rose">${urgent}</p></div>
+    <div class="stat-card"><p class="stat-label">14+ days open</p><p class="stat-value rose">${overdue}</p></div>
+    <div class="stat-card"><p class="stat-label">Avg. resolution</p><p class="stat-value">${avgResolution}${avgResolution === "—" ? "" : "d"}</p></div>
   </div>
   <div class="table-wrap"><div class="table-scroll">
     <table class="data">
-      <thead><tr><th>Reported</th><th>Property / unit</th><th>Issue</th><th>Priority</th><th>Assigned to</th><th>Status</th></tr></thead>
+      <thead><tr>${reportSortHeader("Reported", "reported")}${reportSortHeader("Property / unit", "property")}${reportSortHeader("Issue", "issue")}${reportSortHeader("Priority", "priority")}${reportSortHeader("Assigned to", "assignedTo")}${reportSortHeader("Resolved", "resolved")}${reportSortHeader("Status", "status")}</tr></thead>
       <tbody>
-        ${rows.length === 0 ? `<tr><td colspan="6" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records in this date range.</td></tr>` : rows.map((m) => `
+        ${rows.length === 0 ? `<tr><td colspan="7" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records match the current filters.</td></tr>` : displayRows.map((m) => `
           <tr>
             <td style="white-space:nowrap;">${fmtDate(m.reportedDate)}</td>
             <td>${esc(m.property)}${m.unit ? " · " + esc(m.unit) : ""}</td>
             <td>${esc(m.issue)}</td>
             <td>${badgeHtml(m.priority, MAINT_PRIORITY_STYLE)}</td>
             <td>${esc(m.assignedTo || "—")}</td>
+            <td style="white-space:nowrap;">${fmtDate(m.resolvedDate)}</td>
             <td>${badgeHtml(m.status, MAINT_STATUS_STYLE)}</td>
           </tr>`).join("")}
       </tbody>
     </table>
-  </div></div>`;
+  </div></div>
+  ${reportPaginationHtml(rows.length)}
+  <div class="report-mini-grid">
+    ${reportBreakdownHtml("Requests by priority", MAINT_PRIORITIES.map((p) => [p, rows.filter((r) => r.priority === p).length]), "var(--amber-500)")}
+    ${reportBreakdownHtml("Requests by property", [...new Set(rows.map((r) => r.property).filter(Boolean))].map((p) => [p, rows.filter((r) => r.property === p).length]), "var(--rose-600)")}
+  </div>`;
 }
 
 function reportOccupancyHtml() {
-  const rows = reportOccupancyRows();
+  const rows = sortedReportRows(reportOccupancyRows());
+  const displayRows = reportPageRows(rows);
   const total = rows.length;
   const available = rows.filter((r) => r.kind === "available").length;
   const occupied = rows.filter((r) => r.kind === "occupied").length;
+  const activeInquiry = rows.filter((r) => r.kind === "active").length;
+  const totalArea = rows.reduce((sum, r) => sum + (Number(r.floorArea) || 0), 0);
+  const occupiedArea = rows.filter((r) => r.kind === "occupied").reduce((sum, r) => sum + (Number(r.floorArea) || 0), 0);
+  const estimatedRent = rows.reduce((sum, r) => sum + ((Number(r.floorArea) || 0) * (Number(r.askingRate) || 0)), 0);
   const rate = total ? Math.round((occupied / total) * 100) : 0;
   return `
+  ${reportAnalyticsHtml(rows)}
   <div class="report-summary-grid">
     <div class="stat-card"><p class="stat-label">Total units</p><p class="stat-value">${total}</p></div>
     <div class="stat-card"><p class="stat-label">Available</p><p class="stat-value emerald">${available}</p></div>
     <div class="stat-card"><p class="stat-label">Occupied</p><p class="stat-value">${occupied}</p></div>
     <div class="stat-card"><p class="stat-label">Occupancy rate</p><p class="stat-value">${rate}%</p></div>
+    <div class="stat-card"><p class="stat-label">Active inquiries</p><p class="stat-value blue">${activeInquiry}</p></div>
+    <div class="stat-card"><p class="stat-label">Area occupancy</p><p class="stat-value">${totalArea ? Math.round((occupiedArea / totalArea) * 100) : 0}%</p></div>
+    <div class="stat-card"><p class="stat-label">Est. monthly rent</p><p class="stat-value">${estimatedRent ? fmtMoney(estimatedRent) : "—"}</p></div>
   </div>
   <div class="table-wrap"><div class="table-scroll">
     <table class="data">
-      <thead><tr><th>Property</th><th>Unit</th><th>Floor area</th><th>Asking rate</th><th>Est. monthly rent</th><th>Status</th></tr></thead>
+      <thead><tr>${reportSortHeader("Property", "property")}${reportSortHeader("Unit", "unit")}${reportSortHeader("Floor area", "floorArea")}${reportSortHeader("Asking rate", "askingRate")}${reportSortHeader("Est. monthly rent", "rent")}${reportSortHeader("Active inquiries", "active")}${reportSortHeader("Status", "status")}</tr></thead>
       <tbody>
-        ${rows.map((l) => `
+        ${rows.length === 0 ? `<tr><td colspan="7" style="text-align:center;color:var(--stone-500);padding:24px 16px;">No records match the current filters.</td></tr>` : displayRows.map((l) => `
           <tr>
             <td>${esc(l.property)}</td>
             <td>${esc(l.unit)}</td>
             <td>${l.floorArea ? esc(l.floorArea) + " sqm" : "—"}</td>
             <td>${l.askingRate ? "₱" + Number(l.askingRate).toLocaleString() + "/sqm" : "—"}</td>
             <td>${l.floorArea && l.askingRate ? fmtMoney(Number(l.floorArea) * Number(l.askingRate)) : "—"}</td>
-            <td>${esc(l.label)}</td>
+            <td>${l.active || 0}</td>
+            <td>${badgeHtml(l.label, { [l.label]: l.kind === "available" ? "emerald" : l.kind === "occupied" ? "slate" : "amber" })}</td>
           </tr>`).join("")}
       </tbody>
     </table>
-  </div></div>`;
+  </div></div>
+  ${reportPaginationHtml(rows.length)}
+  <div class="report-mini-grid">
+    ${reportBreakdownHtml("Units by property", [...new Set(rows.map((r) => r.property).filter(Boolean))].map((p) => [p, rows.filter((r) => r.property === p).length]), "var(--emerald-700)")}
+    ${reportBreakdownHtml("Occupied units by property", [...new Set(rows.map((r) => r.property).filter(Boolean))].map((p) => [p, rows.filter((r) => r.property === p && r.kind === "occupied").length]), "var(--teal-700)")}
+  </div>`;
 }
 
 function setReportType(id) {
   state.reportType = id;
+  state.reportStatusFilter = "All";
+  state.reportSortKey = id === "pipeline" ? "date" : id === "maintenance" ? "reported" : "property";
+  state.reportSortDir = id === "occupancy" ? "asc" : "desc";
+  state.reportPage = 1;
   render();
 }
 function onReportDateChange(field, value) {
   state[field] = value;
-  const el = document.getElementById("report-body");
-  if (el) el.innerHTML = reportBodyHtml();
+  state.reportPage = 1;
+  state.reportPreset = "Custom";
+  state.reportFilterError = state.reportFrom && state.reportTo && state.reportFrom > state.reportTo
+    ? "The start date must be on or before the end date."
+    : "";
+  render();
+}
+function onReportStatusFilter(value) {
+  state.reportStatusFilter = value;
+  state.reportPage = 1;
+  render();
 }
 function onReportSearch(value) {
   state.reportSearch = value;
+  state.reportPage = 1;
   const el = document.getElementById("report-body");
   if (el) el.innerHTML = reportBodyHtml();
+}
+
+function clearReportFilters() {
+  state.reportSearch = "";
+  state.reportFrom = "";
+  state.reportTo = "";
+  state.reportFilterError = "";
+  state.reportStatusFilter = "All";
+  state.reportPreset = "All time";
+  state.reportPage = 1;
+  render();
+}
+
+function localDateInputValue(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+function setReportPreset(preset) {
+  const today = new Date();
+  const todayValue = localDateInputValue(today);
+  state.reportPreset = preset;
+  state.reportPage = 1;
+  state.reportFilterError = "";
+  if (preset === "All time") { state.reportFrom = ""; state.reportTo = ""; }
+  if (preset === "This month") { state.reportFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`; state.reportTo = todayValue; }
+  if (preset === "Last 30 days") { const start = new Date(today); start.setDate(start.getDate() - 29); state.reportFrom = localDateInputValue(start); state.reportTo = todayValue; }
+  if (preset === "This year") { state.reportFrom = `${today.getFullYear()}-01-01`; state.reportTo = todayValue; }
+  render();
 }
 
 function csvEscape(v) {
@@ -2642,21 +2959,45 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
+function exportReportPdf() {
+  const previousPage = state.reportPage;
+  const previousPageSize = state.reportPageSize;
+  state.reportPage = 1;
+  state.reportPageSize = 1000000;
+  const body = reportBodyHtml();
+  state.reportPage = previousPage;
+  state.reportPageSize = previousPageSize;
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    state.reportPage = 1;
+    state.reportPageSize = 1000000;
+    render();
+    setTimeout(() => { window.print(); state.reportPage = previousPage; state.reportPageSize = previousPageSize; render(); }, 200);
+    return;
+  }
+  const styles = Array.from(document.querySelectorAll("style")).map((el) => el.outerHTML).join("\n");
+  printWindow.document.open();
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>PLUD ${esc(REPORT_TYPES.find((r) => r.id === state.reportType)?.label || "Report")}</title>${styles}</head><body><main class="main" style="max-width:1152px;margin:0 auto;padding:28px;">${body}</main></body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 450);
+}
+
 function exportReportCsv() {
   if (state.reportType === "pipeline") {
-    const header = ["Date inquired", "Brand/tenant", "Category", "Concept", "Property", "Unit", "Contact", "Mobile", "Email", "Status", "Remarks"];
-    const data = reportPipelineRows().map((t) => [t.dateInquired, t.brand, t.category, t.concept, t.property, t.unit, t.contact, t.mobile, t.email, t.status, t.remarks]);
+    const header = ["Date inquired", "Brand/tenant", "Category", "Concept", "Property", "Unit", "Contact", "Mobile", "Email", "Next follow-up", "Status", "Remarks"];
+    const data = sortedReportRows(reportPipelineRows()).map((t) => [t.dateInquired, t.brand, t.category, t.concept, t.property, t.unit, t.contact, t.mobile, t.email, t.nextFollowUp, t.status, t.remarks]);
     downloadCsv("plud-leasing-pipeline.csv", [header, ...data]);
   } else if (state.reportType === "maintenance") {
     const header = ["Reported date", "Property", "Unit", "Issue", "Priority", "Status", "Assigned to", "Resolved date", "Notes"];
-    const data = reportMaintenanceRows().map((m) => [m.reportedDate, m.property, m.unit, m.issue, m.priority, m.status, m.assignedTo, m.resolvedDate, m.notes]);
+    const data = sortedReportRows(reportMaintenanceRows()).map((m) => [m.reportedDate, m.property, m.unit, m.issue, m.priority, m.status, m.assignedTo, m.resolvedDate, m.notes]);
     downloadCsv("plud-maintenance.csv", [header, ...data]);
   } else {
-    const header = ["Property", "Unit", "Floor area (sqm)", "Asking rate (PHP/sqm)", "Est. monthly rent", "Status", "Active inquiries"];
-    const data = reportOccupancyRows().map((l) => [
+    const header = ["Property", "Unit", "Floor area (sqm)", "Asking rate (PHP/sqm)", "Est. monthly rent", "Active inquiries", "Status"];
+    const data = sortedReportRows(reportOccupancyRows()).map((l) => [
       l.property, l.unit, l.floorArea, l.askingRate,
       l.floorArea && l.askingRate ? Number(l.floorArea) * Number(l.askingRate) : "",
-      l.label, l.count,
+      l.active || 0, l.label,
     ]);
     downloadCsv("plud-occupancy.csv", [header, ...data]);
   }
@@ -2672,6 +3013,15 @@ function settingsHtml() {
       <h1 class="page-title">Settings</h1>
       <p class="page-sub">Manage sign-in, users, and the category/concept/status options used across the pipeline.</p>
     </div>
+
+    <div class="settings-kpi-grid">
+      <div class="settings-kpi"><div class="settings-kpi-label">Active users</div><div class="settings-kpi-value">${state.users.length}</div></div>
+      <div class="settings-kpi"><div class="settings-kpi-label">Custom categories</div><div class="settings-kpi-value">${state.customCategories.length}</div></div>
+      <div class="settings-kpi"><div class="settings-kpi-label">Custom concepts</div><div class="settings-kpi-value">${state.customConcepts.length}</div></div>
+      <div class="settings-kpi"><div class="settings-kpi-label">Custom statuses</div><div class="settings-kpi-value">${state.customStatuses.length}</div></div>
+    </div>
+
+    ${isSystemAdmin() ? `<section class="panel"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><h2 class="section-title" style="margin-bottom:4px;">Backup &amp; restore</h2><p class="settings-section-note" style="margin:0;max-width:620px;">Download a point-in-time JSON backup of operational data and custom configuration. Passwords and credentials are never included. Restore replaces the current tracker data after validation.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-outline" onclick="downloadSystemBackup()">${icon("download", 15)} Download backup</button><button class="btn btn-primary" onclick="openRestoreBackup()">${icon("upload", 15)} Restore backup</button></div></div></section>` : ""}
 
     <section class="panel">
       <h2 class="section-title">Quick actions</h2>
@@ -2714,6 +3064,7 @@ function settingsHtml() {
 
     <section class="panel">
       <h2 class="section-title">Categories</h2>
+      <p class="settings-section-note">Categories group tenant inquiries and determine which concepts appear in the inquiry form.</p>
       <div class="add-option-row">
         <input id="new-category-value" class="input" placeholder="Add category..." onkeydown="if(event.key==='Enter'){addCustomCategory();}" />
         <button class="btn btn-primary" onclick="addCustomCategory()">${icon("plus", 15)} Add</button>
@@ -2724,6 +3075,7 @@ function settingsHtml() {
 
     <section class="panel">
       <h2 class="section-title">Concepts</h2>
+      <p class="settings-section-note">Concepts are scoped to the selected category and appear after a category is chosen.</p>
       <div class="add-option-row">
         <select class="input" style="width:auto;" onchange="onSettingsConceptCategoryChange(this.value)">
           ${allCategories().map((c) => `<option value="${esc(c)}" ${((state.settingsConceptCategory || allCategories()[0]) === c) ? "selected" : ""}>${esc(c)}</option>`).join("")}
@@ -2737,6 +3089,7 @@ function settingsHtml() {
 
     <section class="panel">
       <h2 class="section-title">Statuses</h2>
+      <p class="settings-section-note">Statuses control pipeline stages, filters, and reporting breakdowns. Built-in stages cannot be removed.</p>
       <div class="add-option-row">
         <input id="new-status-value" class="input" placeholder="Add status..." onkeydown="if(event.key==='Enter'){addCustomStatus();}" />
         <button class="btn btn-primary" onclick="addCustomStatus()">${icon("plus", 15)} Add</button>
@@ -2746,6 +3099,96 @@ function settingsHtml() {
       <p style="margin:8px 0 0;font-size:12px;color:var(--stone-500);">New statuses show up in the pipeline stage chart and filters, but only "Awarded/ Leased" and "Lost/ Inactive" are treated as closed deals in the stats.</p>
     </section>
   </div>`;
+}
+
+function isSystemAdmin() {
+  return Boolean(state.user && /admin|administrator/i.test(state.user.role || ""));
+}
+
+function systemBackupPayload() {
+  return {
+    app: "PLUD Leasing Tracker",
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    exportedBy: state.user ? state.user.name : "",
+    note: "Credentials and passwords are intentionally excluded.",
+    data: {
+      tenants: state.tenants,
+      listings: state.listings,
+      maintenance: state.maintenance,
+      contracts: state.contracts,
+      customCategories: state.customCategories,
+      customConcepts: state.customConcepts,
+      customStatuses: state.customStatuses,
+    },
+  };
+}
+function downloadSystemBackup() {
+  if (!isSystemAdmin()) return;
+  const payload = systemBackupPayload();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `plud-leasing-backup-${stamp}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function openRestoreBackup() {
+  if (!isSystemAdmin()) return;
+  state.showRestoreBackup = true; state.restoreBackupError = ""; state.restoreBackupPreview = null; render();
+}
+function closeRestoreBackup() { state.showRestoreBackup = false; state.restoreBackupError = ""; state.restoreBackupPreview = null; render(); }
+function validateBackupPayload(payload) {
+  if (!payload || payload.app !== "PLUD Leasing Tracker" || payload.schemaVersion !== 1 || !payload.data) throw new Error("This is not a compatible PLUD Leasing Tracker backup.");
+  const required = ["tenants", "listings", "maintenance", "contracts", "customCategories", "customConcepts", "customStatuses"];
+  if (required.some((key) => !Array.isArray(payload.data[key]))) throw new Error("The backup is incomplete or corrupted.");
+  return payload;
+}
+async function handleRestoreBackupFile(file) {
+  state.restoreBackupError = ""; state.restoreBackupPreview = null;
+  if (!file) return;
+  try {
+    const payload = validateBackupPayload(JSON.parse(await file.text()));
+    state.restoreBackupPreview = { payload, fileName: file.name };
+  } catch (e) { state.restoreBackupError = e.message || "Could not read this backup file."; }
+  render();
+}
+function restoreBackupModalHtml() {
+  const preview = state.restoreBackupPreview;
+  return `<div class="overlay"><div class="modal narrow"><div class="modal-header"><h2>Restore backup</h2><button class="icon-btn" onclick="closeRestoreBackup()" aria-label="Close">${icon("x", 18)}</button></div><div class="modal-body"><div id="restore-backup-error">${state.restoreBackupError ? `<div class="form-error">${icon("alert", 16)} ${esc(state.restoreBackupError)}</div>` : ""}</div><label><span class="field-label">Backup JSON file</span><input type="file" accept="application/json,.json" class="input" onchange="handleRestoreBackupFile(this.files[0])" /></label>${preview ? `<div style="border:1px solid var(--stone-200);border-radius:10px;background:var(--stone-50);padding:12px;font-size:12px;color:var(--stone-600);"><strong style="color:var(--stone-800);">${esc(preview.fileName)}</strong><br>Created ${fmtDateTime(preview.payload.exportedAt)}<br><span style="display:block;margin-top:6px;">${preview.payload.data.tenants.length} tenants · ${preview.payload.data.listings.length} listings · ${preview.payload.data.maintenance.length} maintenance · ${preview.payload.data.contracts.length} contracts</span><span style="display:block;">${preview.payload.data.customCategories.length} custom categories · ${preview.payload.data.customConcepts.length} custom concepts · ${preview.payload.data.customStatuses.length} custom statuses</span></div><div class="report-filter-error" style="margin:0;">Restore updates tracker records from this snapshot. Existing user accounts and passwords are not included.</div>` : `<p class="empty-note" style="padding:12px 0;">Choose a PLUD backup JSON file to preview its contents.</p>`}</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeRestoreBackup()">Cancel</button><button class="btn btn-primary" onclick="restoreSystemBackup()" ${preview ? "" : "disabled"}>Restore data</button></div></div></div>`;
+}
+async function restoreSystemBackup() {
+  if (!isSystemAdmin() || !state.restoreBackupPreview) return;
+  if (!window.confirm("Restore this backup and replace the current tracker data? Existing records not present in the backup will be removed.")) return;
+  const data = state.restoreBackupPreview.payload.data;
+  const current = { tenants: state.tenants, listings: state.listings, maintenance: state.maintenance, contracts: state.contracts, options: [...state.customCategories, ...state.customConcepts, ...state.customStatuses] };
+  state.tenants = data.tenants; state.listings = data.listings; state.maintenance = data.maintenance; state.contracts = data.contracts;
+  state.customCategories = data.customCategories; state.customConcepts = data.customConcepts; state.customStatuses = data.customStatuses;
+  state.showRestoreBackup = false; state.restoreBackupPreview = null; state.restoreBackupError = ""; state.saveError = "";
+  render();
+  try {
+    const syncCollection = async (table, currentRows, backupRows, mapper) => {
+      const keep = new Set(backupRows.map((row) => row.id));
+      const stale = currentRows.map((row) => row.id).filter((id) => !keep.has(id));
+      if (stale.length) { const deleted = await sb.from(table).delete().in("id", stale); if (deleted.error) throw deleted.error; }
+      if (backupRows.length) { const saved = await sb.from(table).upsert(backupRows.map(mapper)); if (saved.error) throw saved.error; }
+    };
+    const backupOptions = [...data.customCategories, ...data.customConcepts, ...data.customStatuses];
+    await Promise.all([
+      syncCollection("plud_tenants", current.tenants, data.tenants, tenantStateToRow),
+      syncCollection("plud_listings", current.listings, data.listings, listingStateToRow),
+      syncCollection("plud_maintenance", current.maintenance, data.maintenance, maintStateToRow),
+      syncCollection("plud_maintenance_contracts", current.contracts, data.contracts, contractStateToRow),
+      syncCollection("plud_custom_options", current.options, backupOptions, (row) => row),
+    ]);
+    state.lastSyncedAt = new Date();
+    cacheSnapshot();
+  } catch (e) {
+    console.error("Restore backup sync failed:", e);
+    state.saveError = "Backup restored locally, but database sync failed. Try Refresh to reconnect.";
+    cacheSnapshot();
+  }
+  const el = document.getElementById("save-banner"); if (el) el.outerHTML = bannerHtml();
 }
 
 function openNewUser() { state.showNewUser = true; state.userFormError = ""; render(); }
@@ -2765,7 +3208,7 @@ function userModalHtml() {
         <label><span class="field-label">Name (optional)</span><input id="u-name" class="input" placeholder="e.g. Sam Bouteldja" /></label>
         <label><span class="field-label">Role (optional)</span><input id="u-role" class="input" placeholder="e.g. Leasing Manager" /></label>
         <div class="grid-2">
-          <label><span class="field-label">Password</span><input type="password" id="u-password" class="input" placeholder="Create a password" autocomplete="new-password" /></label>
+          <label><span class="field-label">Password</span><input type="password" id="u-password" class="input" placeholder="At least 8 characters" autocomplete="new-password" /></label>
           <label><span class="field-label">Confirm password</span><input type="password" id="u-password2" class="input" placeholder="Re-enter password" autocomplete="new-password" /></label>
         </div>
       </div>
@@ -2791,7 +3234,7 @@ async function saveNewUser() {
   };
 
   if (!username) { showErr("Enter a username."); return; }
-  if (!password || password.length < 4) { showErr("Password must be at least 4 characters."); return; }
+  if (!password || password.length < 8) { showErr("Password must be at least 8 characters."); return; }
   if (password !== password2) { showErr("Passwords don't match."); return; }
   if (state.users.some((u) => u.username.toLowerCase() === username)) { showErr("That username is already taken."); return; }
 
@@ -2833,11 +3276,12 @@ async function confirmDeleteUser() {
   if (wasSelf) await logout();
 }
 function confirmDeleteUserDialogHtml() {
+  const isSelf = state.user && state.user.id === state.deletingUserId;
   return `
   <div class="overlay">
     <div class="modal confirm">
       <h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Remove this user?</h2>
-      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">They won't be able to sign in anymore. This can't be undone.</p>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">They won't be able to sign in anymore. This can't be undone.${isSelf ? " You are removing the currently signed-in account and will be signed out." : ""}</p>
       <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;">
         <button class="btn btn-outline" onclick="cancelDeleteUser()">Cancel</button>
         <button class="btn btn-danger" onclick="confirmDeleteUser()">Remove</button>
@@ -2857,7 +3301,7 @@ function categoryListHtml() {
       <span class="option-label">${esc(r.value)}${r.builtin ? `<span class="builtin-tag">(built-in)</span>` : ""}</span>
       ${r.builtin
         ? `<span class="option-remove disabled">Remove</span>`
-        : `<button class="option-remove" onclick="removeCategoryOption('${r.id}')">Remove</button>`}
+        : `<button class="option-remove" onclick="askDeleteOption('${r.id}')">Remove</button>`}
     </div>`).join("");
 }
 function conceptListHtml() {
@@ -2870,7 +3314,7 @@ function conceptListHtml() {
       <span class="option-label">${esc(r.value)}${r.builtin ? `<span class="builtin-tag">(built-in)</span>` : ""}</span>
       ${r.builtin
         ? `<span class="option-remove disabled">Remove</span>`
-        : `<button class="option-remove" onclick="removeConceptOption('${r.id}')">Remove</button>`}
+        : `<button class="option-remove" onclick="askDeleteOption('${r.id}')">Remove</button>`}
     </div>`).join("");
 }
 function statusListHtml() {
@@ -2881,7 +3325,7 @@ function statusListHtml() {
       <span class="option-label">${esc(r.value)}${r.builtin ? `<span class="builtin-tag">(built-in)</span>` : ""}</span>
       ${r.builtin
         ? `<span class="option-remove disabled">Remove</span>`
-        : `<button class="option-remove" onclick="removeStatusOption('${r.id}')">Remove</button>`}
+        : `<button class="option-remove" onclick="askDeleteOption('${r.id}')">Remove</button>`}
     </div>`).join("");
 }
 
@@ -2896,20 +3340,18 @@ function showOptionError(type, msg) {
   if (el) el.innerHTML = msg ? `<div class="form-error" style="margin-bottom:10px;">${icon("alert", 16)} ${esc(msg)}</div>` : "";
 }
 
-async function removeCategoryOption(id) {
-  showOptionError("category", "");
+function askDeleteOption(id) { state.deletingOptionId = id; render(); }
+function cancelDeleteOption() { state.deletingOptionId = null; render(); }
+async function confirmDeleteOption() {
+  const id = state.deletingOptionId;
+  state.deletingOptionId = null;
   await deleteCustomOption(id);
-  document.getElementById("category-list").innerHTML = categoryListHtml();
 }
-async function removeConceptOption(id) {
-  showOptionError("concept", "");
-  await deleteCustomOption(id);
-  document.getElementById("concept-list").innerHTML = conceptListHtml();
-}
-async function removeStatusOption(id) {
-  showOptionError("status", "");
-  await deleteCustomOption(id);
-  document.getElementById("status-list").innerHTML = statusListHtml();
+function confirmDeleteOptionDialogHtml() {
+  const opt = [...state.customCategories, ...state.customConcepts, ...state.customStatuses].find((o) => o.id === state.deletingOptionId);
+  if (!opt) return "";
+  const usage = state.tenants.filter((t) => t.category === opt.value || t.concept === opt.value || t.status === opt.value).length;
+  return `<div class="overlay"><div class="modal confirm"><h2 style="font-size:16px;font-weight:600;margin:0;color:var(--stone-900);">Remove “${esc(opt.value)}”?</h2><p style="margin:8px 0 0;font-size:14px;color:var(--stone-600);">This ${esc(opt.option_type)} will no longer appear in new forms or filters.${usage ? ` It is currently used by <strong>${usage}</strong> ${usage === 1 ? "inquiry" : "inquiries"}; existing records will keep their value.` : ""}</p><div style="margin-top:20px;display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-outline" onclick="cancelDeleteOption()">Cancel</button><button class="btn btn-danger" onclick="confirmDeleteOption()">Remove</button></div></div></div>`;
 }
 
 async function addCustomCategory() {
@@ -3529,6 +3971,7 @@ function render() {
   if (state.userLoading) { root.innerHTML = fullPageLoaderHtml(); return; }
   if (!state.user) { root.innerHTML = loginScreenHtml(); return; }
   if (state.loading) { root.innerHTML = spinnerHtml("h96"); return; }
+  cacheSnapshot();
   root.innerHTML = appShellHtml();
 }
 
