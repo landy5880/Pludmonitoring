@@ -2244,10 +2244,6 @@ function tenantDetailHtml() {
         <label><span class="field-label">Next follow-up date</span><input type="date" id="d-nextFollowUp" class="input" value="${esc(t.nextFollowUp)}" /></label>
         <label><span class="field-label">Assigned to</span><input id="d-assignedTo" class="input" placeholder="e.g. Maria" value="${esc(t.assignedTo)}" /></label>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:14px;">
-        <button class="btn btn-primary" onclick="saveFollowUpFields()">${icon("check", 15)} Save follow-up</button>
-        <span id="followup-save-status" style="font-size:12.5px;color:var(--emerald-700);"></span>
-      </div>
       ${t.nextFollowUp ? (t.nextFollowUp < new Date().toISOString().slice(0, 10)
         ? `<p class="follow-up-status overdue">${icon("alert", 13)} Overdue</p>`
         : t.nextFollowUp === new Date().toISOString().slice(0, 10)
@@ -2263,10 +2259,13 @@ function tenantDetailHtml() {
         <select id="new-activity-type" class="input" style="width:auto;">
           ${ACTIVITY_TYPES.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join("")}
         </select>
-        <input id="new-activity-note" class="input" placeholder="Add a note (optional)" onkeydown="if(event.key==='Enter'){submitNewActivity();}" />
-        <button class="btn btn-primary" onclick="submitNewActivity()">${icon("plus", 14)} Add activity</button>
+        <input id="new-activity-note" class="input" placeholder="Add a note (optional)" onkeydown="if(event.key==='Enter'){saveDetailPage();}" />
       </div>
       <div id="activity-timeline">${activityTimelineHtml()}</div>
+      <div class="no-print" style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;">
+        <span id="followup-save-status" style="font-size:12.5px;color:var(--emerald-700);"></span>
+        <button class="btn btn-primary" onclick="saveDetailPage()">${icon("check", 15)} Save</button>
+      </div>
     </section>
 
     <section class="panel">
@@ -2274,6 +2273,13 @@ function tenantDetailHtml() {
       <p style="font-size:13px;color:var(--stone-600);white-space:pre-wrap;margin:0;">${esc(t.remarks) || "—"}</p>
     </section>
   </div>`;
+}
+
+function saveDetailPage() {
+  const note = document.getElementById("new-activity-note").value.trim();
+  const type = document.getElementById("new-activity-type").value;
+  if (note) logActivity("tenant", state.detailTenantId, type, note);
+  saveFollowUpFields();
 }
 
 function saveFollowUpFields() {
