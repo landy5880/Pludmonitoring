@@ -716,6 +716,7 @@ const state = {
   contractFormError: "",
   showSignOutConfirm: false,
   lastSyncedAt: null,
+  activityVolume: null,
   tenantView: "table",
   draggingTenantId: null,
   detailTenantId: null,
@@ -962,6 +963,43 @@ async function loadData() {
       : "Database unavailable — showing sample data. Changes are kept locally until you reconnect.";
   }
   state.loading = false;
+  loadActivityVolume();
+}
+
+function bucketActivityRowsByHour(rows) {
+  const buckets = new Array(24).fill(0);
+  rows.forEach((r) => {
+    const d = new Date(r.created_at);
+    if (!isNaN(d)) buckets[d.getHours()]++;
+  });
+  let running = 0;
+  return buckets.map((c) => (running += c));
+}
+
+async function loadActivityVolume() {
+  try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
+    const { data, error } = await sb
+      .from("plud_activities")
+      .select("created_at")
+      .gte("created_at", startOfYesterday.toISOString());
+    if (error) throw error;
+    const yesterdayRows = data.filter((r) => new Date(r.created_at) < startOfToday);
+    const todayRows = data.filter((r) => new Date(r.created_at) >= startOfToday);
+    state.activityVolume = {
+      yesterday: bucketActivityRowsByHour(yesterdayRows),
+      today: bucketActivityRowsByHour(todayRows),
+      currentHour: now.getHours(),
+    };
+    if (state.tab === "dashboard") {
+      const el = document.getElementById("activity-volume-chart");
+      if (el) el.outerHTML = activityVolumeChartHtml();
+    }
+  } catch (e) {
+    console.error("Load activity volume failed:", e);
+  }
 }
 
 async function loginWithPassword(name, password) {
@@ -1472,6 +1510,47 @@ function setTab(id) {
 /* ---------------------------------------------------------------------- */
 /* Dashboard                                                               */
 /* ---------------------------------------------------------------------- */
+function activityVolumeChartHtml() {
+  const av = state.activityVolume;
+  if (!av) {
+    return `<div id="activity-volume-chart"><p class="empty-note">Loading activity volume...</p></div>`;
+  }
+  const W = 760, H = 260, padL = 44, padR = 16, padT = 12, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxVal = Math.max(4, ...av.yesterday, ...av.today);
+  const niceMax = Math.ceil(maxVal / 4) * 4 || 4;
+  const xFor = (hour) => padL + (hour / 23) * plotW;
+  const yFor = (val) => padT + plotH - (val / niceMax) * plotH;
+
+  const pathFor = (values) => values.map((v, h) => `${h === 0 ? "M" : "L"}${xFor(h).toFixed(1)},${yFor(v).toFixed(1)}`).join(" ");
+  const dotsFor = (values, color) => values.map((v, h) => `<circle cx="${xFor(h).toFixed(1)}" cy="${yFor(v).toFixed(1)}" r="3.2" fill="#fff" stroke="${color}" stroke-width="2"></circle>`).join("");
+
+  const todayValues = av.today.slice(0, av.currentHour + 1);
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((f) => {
+    const y = padT + plotH - f * plotH;
+    return `
+      <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--stone-200)" stroke-dasharray="3,3"></line>
+      <text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--stone-400)">${Math.round(f * niceMax).toLocaleString()}</text>`;
+  }).join("");
+  const xLabels = [0, 4, 8, 12, 16, 20].map((h) => `<text x="${xFor(h).toFixed(1)}" y="${H - padB + 20}" text-anchor="middle" font-size="11" fill="var(--stone-400)">${String(h).padStart(2, "0")}:00</text>`).join("");
+
+  return `
+  <div id="activity-volume-chart">
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; font-family:inherit;">
+      ${gridLines}
+      ${xLabels}
+      <path d="${pathFor(av.yesterday)}" fill="none" stroke="var(--blue-500)" stroke-width="2.5"></path>
+      ${dotsFor(av.yesterday, "var(--blue-500)")}
+      ${todayValues.length > 0 ? `<path d="${pathFor(todayValues)}" fill="none" stroke="var(--amber-500)" stroke-width="2.5"></path>${dotsFor(todayValues, "var(--amber-500)")}` : ""}
+    </svg>
+    <div style="display:flex; justify-content:center; gap:20px; margin-top:6px;">
+      <span style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--stone-600);"><span style="width:9px;height:9px;border-radius:999px;background:var(--blue-500);display:inline-block;"></span>Yesterday</span>
+      <span style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--stone-600);"><span style="width:9px;height:9px;border-radius:999px;background:var(--amber-500);display:inline-block;"></span>Today</span>
+    </div>
+    <p style="margin:8px 0 0;font-size:11px;color:var(--stone-400);text-align:center;">Cumulative activity logged (calls, notes, status changes) by hour, across all prospects.</p>
+  </div>`;
+}
+
 function dashboardHtml() {
   const s = computeStats();
   const maxStage = Math.max(1, ...s.byStage.map((x) => x.count));
@@ -1513,6 +1592,11 @@ function dashboardHtml() {
             <p class="stat-value ${k.accent || ""}">${k.value}</p>
           </button>`).join("")}
       </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Activity volume — Today vs Yesterday</h2>
+      ${activityVolumeChartHtml()}
     </section>
 
     <section class="panel">
