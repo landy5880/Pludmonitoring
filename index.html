@@ -2241,8 +2241,12 @@ function tenantDetailHtml() {
     <section class="panel">
       <h2 class="section-title">Follow-up</h2>
       <div class="grid-2">
-        <label><span class="field-label">Next follow-up date</span><input type="date" id="d-nextFollowUp" class="input" value="${esc(t.nextFollowUp)}" onchange="saveFollowUpFields()" /></label>
-        <label><span class="field-label">Assigned to</span><input id="d-assignedTo" class="input" placeholder="e.g. Maria" value="${esc(t.assignedTo)}" onchange="saveFollowUpFields()" /></label>
+        <label><span class="field-label">Next follow-up date</span><input type="date" id="d-nextFollowUp" class="input" value="${esc(t.nextFollowUp)}" /></label>
+        <label><span class="field-label">Assigned to</span><input id="d-assignedTo" class="input" placeholder="e.g. Maria" value="${esc(t.assignedTo)}" /></label>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px;">
+        <button class="btn btn-primary" onclick="saveFollowUpFields()">${icon("check", 15)} Save follow-up</button>
+        <span id="followup-save-status" style="font-size:12.5px;color:var(--emerald-700);"></span>
       </div>
       ${t.nextFollowUp ? (t.nextFollowUp < new Date().toISOString().slice(0, 10)
         ? `<p class="follow-up-status overdue">${icon("alert", 13)} Overdue</p>`
@@ -2275,10 +2279,23 @@ function tenantDetailHtml() {
 function saveFollowUpFields() {
   const t = state.tenants.find((x) => x.id === state.detailTenantId);
   if (!t) return;
+  const statusEl = document.getElementById("followup-save-status");
+  if (statusEl) statusEl.textContent = "Saving...";
   const updated = { ...t, nextFollowUp: document.getElementById("d-nextFollowUp").value, assignedTo: document.getElementById("d-assignedTo").value };
   state.tenants = state.tenants.map((x) => (x.id === t.id ? updated : x));
+  render();
+  const newStatusEl = document.getElementById("followup-save-status");
+  if (newStatusEl) {
+    newStatusEl.style.color = "var(--emerald-700)";
+    newStatusEl.textContent = "Saved";
+    setTimeout(() => { if (newStatusEl.isConnected) newStatusEl.textContent = ""; }, 2000);
+  }
   sb.from("plud_tenants").upsert(tenantStateToRow(updated)).then(({ error }) => {
-    if (error) console.error("Save follow-up fields failed:", error);
+    if (error) {
+      console.error("Save follow-up fields failed:", error);
+      const el = document.getElementById("followup-save-status");
+      if (el) { el.textContent = "Couldn't save — try again."; el.style.color = "var(--rose-700)"; }
+    }
   });
 }
 
