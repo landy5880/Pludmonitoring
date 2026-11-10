@@ -140,7 +140,7 @@ function downloadCsv(filename, rows) {
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY2lheWh4dmtxaG1nY2RmdmNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMjU4NTIsImV4cCI6MjEwNDYwMTg1Mn0.nzt3RSE65MrR_Y3lqPiGFwYgdoBnsYDC8ket3GifYuk";
+const SUPABASE_ANON_KEY = "sb_publishable_P44UgJCWj04mJt35oivf-w_RFlQG2Rn"; // publishable key (safe to expose; access is governed by RLS)
 
 // Talks to Supabase's REST API directly with fetch, rather than importing
 // the @supabase/supabase-js SDK, since the artifact sandbox only allows a
@@ -150,7 +150,7 @@ async function sbRequest(path, options = {}) {
     ...options,
     headers: {
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      ...(SUPABASE_ANON_KEY.startsWith("eyJ") ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}` } : {}),
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
