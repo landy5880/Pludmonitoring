@@ -140,7 +140,7 @@ function downloadCsv(filename, rows) {
 const STORAGE_KEY = "plud-leasing-tracker-data"; // legacy key, no longer used for tenants/listings
 const USER_STORAGE_KEY = "plud-leasing-tracker-user";
 const SUPABASE_URL = "https://bgciayhxvkqhmgcdfvco.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_P44UgJCWj04mJt35oivf-w_RFlQG2Rn"; // publishable key (safe to expose; access is governed by RLS)
+const SUPABASE_ANON_KEY = "sb_publishable_jQPZh50UUxN3xFlFOug58w_JM1hW8u4"; // publishable key (safe to expose; access is governed by RLS)
 
 // Talks to Supabase's REST API directly with fetch, rather than importing
 // the @supabase/supabase-js SDK, since the artifact sandbox only allows a
